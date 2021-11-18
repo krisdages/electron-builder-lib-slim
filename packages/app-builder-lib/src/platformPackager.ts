@@ -1,7 +1,7 @@
 import BluebirdPromise from "bluebird-lst"
 import { Arch, asArray, AsyncTaskManager, debug, DebugLogger, deepAssign, getArchSuffix, InvalidConfigurationError, isEmptyOrSpaces, log, isEnvTrue } from "builder-util"
 import { defaultArchFromString, getArtifactArchName } from "builder-util/out/arch"
-import { FileTransformer, statOrNull } from "builder-util/out/fs"
+import { copyOrLinkFile, FileTransformer, statOrNull } from "builder-util/out/fs"
 import { orIfFileNotExist } from "builder-util/out/promise"
 import { readdir } from "fs/promises"
 import { Lazy } from "lazy-val"
@@ -382,7 +382,14 @@ export abstract class PlatformPackager<DC extends PlatformSpecificBuildOptions> 
     }
 
     if (this.info.isPrepackedAppAsar) {
-      taskManager.addTask(BluebirdPromise.each(_computeFileSets([new FileMatcher(appDir, resourcePath, macroExpander)]), it => copyAppFiles(it, this.info, transformer)))
+      //taskManager.addTask(BluebirdPromise.each(_computeFileSets([new FileMatcher(appDir, resourcePath, macroExpander)]), it => copyAppFiles(it, this.info, transformer)))
+      const asarPrebuiltPath = asarOptions?.prebuiltPath;
+      if (asarPrebuiltPath != null) {
+        taskManager.addTask(require("fs-extra").ensureDir(resourcePath).then(() => copyOrLinkFile(path.resolve(this.projectDir, asarPrebuiltPath), path.join(resourcePath, "app.asar"))));
+      }
+      else {
+        taskManager.addTask(BluebirdPromise.each(_computeFileSets([new FileMatcher(appDir, resourcePath, macroExpander)]), it => copyAppFiles(it, this.info, transformer)));
+      }
     } else if (asarOptions == null) {
       // for ASAR all asar unpacked files will be extra transformed (e.g. sign of EXE and DLL) later,
       // for prepackaged asar extra transformation not supported yet,

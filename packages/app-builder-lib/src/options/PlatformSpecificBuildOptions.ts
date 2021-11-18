@@ -25,6 +25,8 @@ export interface AsarOptions extends AsarIntegrityOptions {
   smartUnpack?: boolean
 
   ordering?: string | null
+
+  prebuiltPath?: string | null;
 }
 
 export interface PlatformSpecificBuildOptions extends TargetSpecificOptions {

@@ -345,6 +345,13 @@
           "default": true,
           "description": "Whether to automatically unpack executables files.",
           "type": "boolean"
+        },
+        "prebuiltPath": {
+          "description": "Path to a prebuilt app.asar file, relative to projectDir if not absolute.",
+          "type": [
+            "null",
+            "string"
+          ]
         }
       },
       "type": "object"
