@@ -58,9 +58,16 @@ export class ArchiveTarget extends Target {
         }
       }
 
+      const isUsedForAutoUpdate = isMac && format === "zip" && this.isWriteUpdateInfo;
       const archiveOptions = {
         compression: packager.compression,
         withoutDir,
+        // 2021-11 Rename the entries so it isn't just files in a directory.
+        // Except when needed for auto update.
+        prependArtifactDir: !isUsedForAutoUpdate,
+        excluded: isUsedForAutoUpdate ? undefined : [
+          isMac ? `${packager.appInfo.productFilename}.app/Contents/Resources/app-update.yml` : "resources/app-update.yml"
+        ]
       }
       await archive(format, artifactPath, dirToArchive, archiveOptions)
 

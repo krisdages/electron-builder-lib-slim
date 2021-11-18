@@ -27,8 +27,16 @@ export async function tar(
     unlinkIfExists(outFile),
   ])
 
+  /* keep the tar name dir even on mac - the dirToArchive is the .app directory */
   if (!isMacApp) {
     await exec(path7za, ["rn", tarFile, path.basename(dirToArchive), path.basename(outFile, `.${format}`)])
+  }
+  else {
+    if (!dirToArchive.endsWith(".app")) {
+      throw Error("Expected mac dirToArchive to be <name>.app");
+    }
+    const dotAppDir = path.basename(dirToArchive);
+    await exec(path7za, ["rn", tarFile, dotAppDir, path.join(path.basename(outFile, `.${format}`), dotAppDir)]);
   }
 
   if (format === "tar.lz") {
@@ -66,6 +74,8 @@ export interface ArchiveOptions {
    * @default false
    */
   withoutDir?: boolean
+
+  prependArtifactDir?: boolean;
 
   /**
    * @default true
@@ -182,6 +192,22 @@ export async function archive(format: string, outFile: string, dirToArchive: str
     } else {
       throw e
     }
+  }
+
+  /* Rename the entries to prepend the artifact name as a directory, if specified. */
+  if (options.prependArtifactDir) {
+    const SLICE_INDEX = "Path = ".length;
+    const ROOT_ENTRY_REGEX = /^Path \= [^\/]+$/;
+    const entries = (await exec(path7za, ["l", "-slt", outFile]))
+      .split("\n")
+      .filter(row => ROOT_ENTRY_REGEX.test(row))
+      .map(row => row.slice(SLICE_INDEX));
+
+    if (entries.length === 0) {
+      throw Error("prependArtifactDir: No files in archive or unexpected list output format.");
+    }
+    const dirToPrepend = path.basename(outFile, `.${format}`);
+    await exec(path7za, ["rn", outFile, ...entries.flatMap(orig => [orig, path.join(dirToPrepend, orig)])]);
   }
 
   return outFile
