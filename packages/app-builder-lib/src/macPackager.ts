@@ -69,6 +69,7 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
           break
 
         case "dmg": {
+          console.warn("THIS PACKAGE IS PATCHED so mac zip doesn't have the app-update.yml file in it. DMG autoupdate won't work correctly until refactored.");
           // eslint-disable-next-line @typescript-eslint/no-var-requires
           const { DmgTarget } = require("dmg-builder")
           mapper(name, outDir => new DmgTarget(this, outDir))
@@ -76,8 +77,10 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
         }
 
         case "zip":
-          // https://github.com/electron-userland/electron-builder/issues/2313
-          mapper(name, outDir => new ArchiveTarget(name, outDir, this, true))
+          // DON'T include the app-update.yml or generate blockmaps by default.
+          mapper(name, outDir => new ArchiveTarget(name, outDir, this, false));
+          // // https://github.com/electron-userland/electron-builder/issues/2313
+          // mapper(name, outDir => new ArchiveTarget(name, outDir, this, true))
           break
 
         case "pkg":
