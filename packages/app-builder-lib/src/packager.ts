@@ -15,6 +15,7 @@ import { createElectronFrameworkSupport } from "./electron/ElectronFramework"
 import { Framework } from "./Framework"
 import { LibUiFramework } from "./frameworks/LibUiFramework"
 import { Metadata } from "./options/metadata"
+import { AsarOptions } from "./options/PlatformSpecificBuildOptions"
 import { ArtifactBuildStarted, ArtifactCreated, PackagerOptions } from "./packagerApi"
 import { PlatformPackager, resolveFunction } from "./platformPackager"
 import { ProtonFramework } from "./ProtonFramework"
@@ -396,7 +397,17 @@ export class Packager {
   }
 
   private async readProjectMetadataIfTwoPackageStructureOrPrepacked(appPackageFile: string): Promise<Metadata> {
-    let data = await orNullIfFileNotExist(readPackageJson(appPackageFile))
+    let data;
+    const asarPrebuiltPath = ((this.options.config as Partial<Configuration> | null | undefined)?.asar as Partial<AsarOptions> | null | undefined)?.prebuiltPath;
+    if (asarPrebuiltPath != null) {
+      data = await orNullIfFileNotExist(readAsarJson(path.join(path.resolve(this.projectDir, asarPrebuiltPath)), "package.json"));
+      if (data != null) {
+        this._isPrepackedAppAsar = true;
+        this._nodeModulesHandledExternally = true;
+        return data;
+      }
+    }
+    data = await orNullIfFileNotExist(readPackageJson(appPackageFile));
     if (data != null) {
       return data
     }

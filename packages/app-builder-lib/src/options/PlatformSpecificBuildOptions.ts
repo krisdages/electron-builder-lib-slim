@@ -25,6 +25,11 @@ export interface AsarOptions extends AsarIntegrityOptions {
   smartUnpack?: boolean
 
   ordering?: string | null
+
+  /**
+   * Path to a prebuilt app.asar file, relative to projectDir if not absolute.
+   */
+  prebuiltPath?: string | null
 }
 
 export interface PlatformSpecificBuildOptions extends TargetSpecificOptions {

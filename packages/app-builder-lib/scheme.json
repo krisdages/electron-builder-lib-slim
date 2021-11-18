@@ -341,6 +341,13 @@
             "string"
           ]
         },
+        "prebuiltPath": {
+          "description": "Path to a prebuilt app.asar file, relative to projectDir if not absolute.",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
         "smartUnpack": {
           "default": true,
           "description": "Whether to automatically unpack executables files.",
@@ -493,7 +500,21 @@
           "description": "Repository slug/name",
           "type": "string"
         },
+        "token": {
+          "description": "The access token to support auto-update from private bitbucket repositories.",
+          "type": [
+            "null",
+            "string"
+          ]
+        },
         "updaterCacheDirName": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "username": {
+          "description": "The user name to support auto-update from private bitbucket repositories.",
           "type": [
             "null",
             "string"
