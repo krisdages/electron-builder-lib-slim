@@ -5,7 +5,7 @@
   "lint-staged": {
     "packages/**/*.ts": "eslint",
     "**/package.json": "pnpm lint-deps",
-    "test/src/helpers/checkDeps.ts": "pnpm lint-deps",
+    "test/src/helpers/checkDeps.ts": "pnpm lint-deps"
   },
   "scripts": {
     "//": "do not wrap into single quotes - windows doesn't unwrap arg in this case",
@@ -25,7 +25,7 @@
     "update-deps": "pnpm update -i -r --latest"
   },
   "//": "repository must be specified otherwise conventional-changelog will use forked repo (currently cloned)",
-  "repository": "https://github.com/electron-userland/electron-builder",
+  "repository": "https://github.com/krisdages/electron-builder-lib-slim",
   "///": "All dependencies for all packages (hoisted)",
   "////": "All typings are added into root `package.json` to avoid duplication errors in the IDE compiler (several `node.d.ts` files).",
   "dependencies": {

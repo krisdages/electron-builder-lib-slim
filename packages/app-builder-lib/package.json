@@ -1,7 +1,7 @@
 {
-  "name": "app-builder-lib",
+  "name": "@krisdages/electron-builder-lib-slim",
   "description": "electron-builder lib",
-  "version": "22.14.7",
+  "version": "22.14.7-slim-1.0.1",
   "main": "out/index.js",
   "files": [
     "out",
@@ -10,11 +10,6 @@
     "electron-osx-sign",
     "certs/root_certs.keychain"
   ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/electron-userland/electron-builder.git",
-    "directory": "packages/app-builder-lib"
-  },
   "engines": {
     "node": ">=14.0.0"
   },
@@ -40,16 +35,15 @@
   ],
   "author": "Vladimir Krivosheev",
   "license": "MIT",
-  "bugs": "https://github.com/electron-userland/electron-builder/issues",
-  "homepage": "https://github.com/electron-userland/electron-builder",
+  "homepage": "https://github.com/krisdages/electron-builder-lib-slim",
   "dependencies": {
     "7zip-bin": "~5.1.1",
     "@develar/schema-utils": "~2.6.5",
     "@electron/universal": "1.0.5",
     "async-exit-hook": "^2.0.1",
     "bluebird-lst": "^1.0.9",
-    "builder-util": "workspace:*",
-    "builder-util-runtime": "workspace:*",
+    "builder-util": "workspace:@krisdages/builder-util@*",
+    "builder-util-runtime": "workspace:@krisdages/builder-util-runtime@*",
     "chromium-pickle-js": "^0.2.0",
     "debug": "^4.3.2",
     "ejs": "^3.1.6",
@@ -71,8 +65,7 @@
     "@types/fs-extra": "9.0.12",
     "@types/js-yaml": "4.0.3",
     "@types/semver": "7.3.8",
-    "dmg-builder": "workspace:*",
-    "electron-builder-squirrel-windows": "workspace:*"
+    "dmg-builder": "workspace:*"
   },
   "//": "electron-builder-squirrel-windows and dmg-builder added as dev dep for tests (as otherwise `require` doesn't work using Yarn 2)",
   "typings": "./out/index.d.ts"

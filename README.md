@@ -1,3 +1,37 @@
+## @krisdages/electron-builder-lib-slim<br/>@krisdages/electron-updater
+
+#### This is an UNSUPPORTED fork of electron-builder and electron-updater intended to have a smaller footprint for only a few basic use cases:
+
+* Programmatic use as a library
+* Packaging without native dependencies
+* Electron framework only for `win32`, `darwin`, and `linux` platforms
+* Code signing
+* Archive (e.g. zip, tar) targets 
+* Auto-update targets (nsis, AppImage, dmg)
+  * As of 2021-11, dmg auto-update is likely broken because the mac ZIP layout was changed
+    and the app-update.yml file was removed. Will be addressing this soon.
+* `generic` or `custom` updater feeds
+
+Please refer to the main project for documentation, as docs were removed from this repo. 
+
+### Additions/changes:
+* `AsarOptions.prebuiltPath`: Prebuilt app.asar option similar to electron-packager
+* `autoUpdater.useSemver = false` to compare update versions as string without the concept of upgrade/downgrade.
+* Archive target layout prepends the archive name as a directory to all entries for all platforms.
+  
+### Removals
+* CLI
+* Publisher providers
+* snap, deb, pkg, mas, Squirrel.Windows, and all other targets not listed above.
+* node-gyp/electron-compile/rebuild etc
+* Proton, libui frameworks
+* CI detection
+* Disabled the git hooks; test suites do not all pass since they were reliant on providers and targets 
+  that were removed, and I haven't fixed them yet <br/>
+  (sorry, I'm bad, I know, but I'm expecting to be the only consumer of this fork)
+
+Original README follows:
+
 # electron-builder [![npm version](https://img.shields.io/npm/v/electron-builder.svg?label=latest)](https://www.npmjs.com/package/electron-builder) [![downloads per month](https://img.shields.io/npm/dm/electron-builder.svg)](https://yarn.pm/electron-builder) [![donate](https://img.shields.io/badge/donate-donorbox-brightgreen.svg)](https://www.electron.build/donate) [![project discussions](https://img.shields.io/badge/discuss-on_github-blue.svg)](https://github.com/electron-userland/electron-builder/discussions)
 A complete solution to package and build a ready for distribution [Electron](https://electronjs.org), [Proton Native](https://proton-native.js.org/) app for macOS, Windows and Linux with “auto update” support out of the box.
 
