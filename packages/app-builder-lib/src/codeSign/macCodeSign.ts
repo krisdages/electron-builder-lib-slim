@@ -57,7 +57,6 @@ export function isSignAllowed(isPrintWarn = true): boolean {
 }
 
 export async function reportError(
-  isMas: boolean,
   certificateTypes: CertType[],
   qualifier: string | null | undefined,
   keychainFile: string | null | undefined,
@@ -67,7 +66,7 @@ export async function reportError(
   if (qualifier == null) {
     logFields.reason = ""
     if (isAutoDiscoveryCodeSignIdentity()) {
-      logFields.reason += `cannot find valid "${certificateTypes.join(", ")}" identity${isMas ? "" : ` or custom non-Apple code signing certificate`}`
+      logFields.reason += `cannot find valid "${certificateTypes.join(", ")}" identity or custom non-Apple code signing certificate`
     }
     logFields.reason += ", see https://electron.build/code-signing"
     if (!isAutoDiscoveryCodeSignIdentity()) {
@@ -91,7 +90,7 @@ export async function reportError(
       .join("\n")
   }
 
-  if (isMas || isForceCodeSigning) {
+  if (isForceCodeSigning) {
     throw new Error(Logger.createMessage("skipped macOS application code signing", logFields, "error", it => it))
   } else {
     log.warn(logFields, "skipped macOS application code signing")

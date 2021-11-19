@@ -1,8 +1,8 @@
-import { configureRequestOptionsFromUrl, GithubOptions } from "builder-util-runtime"
+import { configureRequestOptionsFromUrl } from "builder-util-runtime"
 import { MacUpdater } from "electron-updater/out/MacUpdater"
 import { EventEmitter } from "events"
 import { assertThat } from "../helpers/fileAssert"
-import { createTestAppAdapter, httpExecutor, trackEvents, tuneTestUpdater, writeUpdateConfig } from "../helpers/updaterTestUtil"
+import { createTestAppAdapter, httpExecutor, trackEvents, tuneTestUpdater } from "../helpers/updaterTestUtil"
 
 class TestNativeUpdater extends EventEmitter {
   private updateUrl: string | null = null
@@ -27,7 +27,7 @@ class TestNativeUpdater extends EventEmitter {
   }
 }
 
-test.ifAll.ifNotCi.ifMac("mac updates", async () => {
+test.ifAll.ifNotCi.ifMac.skip("mac updates", async () => {
   const mockNativeUpdater = new TestNativeUpdater()
   jest.mock(
     "electron",
@@ -40,12 +40,12 @@ test.ifAll.ifNotCi.ifMac("mac updates", async () => {
   )
 
   const updater = new MacUpdater(undefined, await createTestAppAdapter())
-  const options: GithubOptions = {
-    provider: "github",
-    owner: "develar",
-    repo: "onshape-desktop-shell",
-  }
-  updater.updateConfigPath = await writeUpdateConfig(options)
+  // const options: GithubOptions = {
+  //   provider: "github",
+  //   owner: "develar",
+  //   repo: "onshape-desktop-shell",
+  // }
+  // updater.updateConfigPath = await writeUpdateConfig(options)
 
   updater.on("download-progress", () => {
     // console.log(JSON.stringify(data))

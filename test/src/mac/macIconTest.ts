@@ -1,4 +1,4 @@
-import { DIR_TARGET, Platform } from "electron-builder"
+import { DIR_TARGET, Platform } from "app-builder-lib"
 import * as fs from "fs/promises"
 import * as path from "path"
 import { CheckingMacPackager } from "../helpers/CheckingPackager"

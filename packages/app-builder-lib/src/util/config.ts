@@ -6,7 +6,6 @@ import * as path from "path"
 import { getConfig as _getConfig, loadParentConfig, orNullIfFileNotExist, ReadConfigRequest } from "read-config-file"
 import { Configuration } from "../configuration"
 import { FileSet } from "../options/PlatformSpecificBuildOptions"
-import { reactCra } from "../presets/rectCra"
 import { PACKAGE_VERSION } from "../version"
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const validateSchema = require("@develar/schema-utils")
@@ -54,10 +53,7 @@ export async function getConfig(
   if (config.extends == null && config.extends !== null) {
     const metadata = (await packageMetadata.value) || {}
     const devDependencies = metadata.devDependencies
-    const dependencies = metadata.dependencies
-    if ((dependencies != null && "react-scripts" in dependencies) || (devDependencies != null && "react-scripts" in devDependencies)) {
-      config.extends = "react-cra"
-    } else if (devDependencies != null && "electron-webpack" in devDependencies) {
+    if (devDependencies != null && "electron-webpack" in devDependencies) {
       let file = "electron-webpack/out/electron-builder.js"
       try {
         file = require.resolve(file)
@@ -69,15 +65,9 @@ export async function getConfig(
   }
 
   const parentConfigs = await loadParentConfigsRecursively(config.extends, async configExtend => {
-    if (configExtend === "react-cra") {
-      const result = await reactCra(projectDir)
-      log.info({ preset: configExtend }, "loaded parent configuration")
-      return result
-    } else {
-      const { configFile, result } = await loadParentConfig<Configuration>(configRequest, configExtend)
-      log.info({ file: configFile }, "loaded parent configuration")
-      return result
-    }
+    const { configFile, result } = await loadParentConfig<Configuration>(configRequest, configExtend)
+    log.info({ file: configFile }, "loaded parent configuration")
+    return result
   })
 
   return doMergeConfigs([...parentConfigs, config])

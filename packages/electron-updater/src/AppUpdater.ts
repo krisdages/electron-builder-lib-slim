@@ -1,4 +1,4 @@
-import { AllPublishOptions, asArray, CancellationToken, newError, PublishConfiguration, UpdateInfo, UUID, DownloadOptions, CancellationError } from "builder-util-runtime"
+import { AllPublishOptions, asArray, CancellationError, CancellationToken, DownloadOptions, newError, PublishConfiguration, UpdateInfo, UUID } from "builder-util-runtime"
 import { randomBytes } from "crypto"
 import { EventEmitter } from "events"
 import { outputFile } from "fs-extra"
@@ -7,14 +7,14 @@ import { OutgoingHttpHeaders } from "http"
 import { load } from "js-yaml"
 import { Lazy } from "lazy-val"
 import * as path from "path"
-import { eq as isVersionsEqual, gt as isVersionGreaterThan, lt as isVersionLessThan, parse as parseVersion, prerelease as getVersionPreleaseComponents, SemVer } from "semver"
+import { eq as isVersionsEqual, gt as isVersionGreaterThan, lt as isVersionLessThan, parse as parseVersion, SemVer } from "semver"
 import { AppAdapter } from "./AppAdapter"
 import { createTempUpdateFile, DownloadedUpdateHelper } from "./DownloadedUpdateHelper"
 import { ElectronAppAdapter } from "./ElectronAppAdapter"
 import { ElectronHttpExecutor, getNetSession } from "./electronHttpExecutor"
-import { GenericProvider } from "./providers/GenericProvider"
 import { DOWNLOAD_PROGRESS, Logger, Provider, ResolvedUpdateFileInfo, UPDATE_DOWNLOADED, UpdateCheckResult, UpdateDownloadedEvent, UpdaterSignal } from "./main"
 import { createClient, isUrlProbablySupportMultiRangeRequests } from "./providerFactory"
+import { GenericProvider } from "./providers/GenericProvider"
 import { ProviderPlatform } from "./providers/Provider"
 import Session = Electron.Session
 
@@ -30,19 +30,6 @@ export abstract class AppUpdater extends EventEmitter {
   autoInstallOnAppQuit = true
 
   /**
-   * *GitHub provider only.* Whether to allow update to pre-release versions. Defaults to `true` if application version contains prerelease components (e.g. `0.12.1-alpha.1`, here `alpha` is a prerelease component), otherwise `false`.
-   *
-   * If `true`, downgrade will be allowed (`allowDowngrade` will be set to `true`).
-   */
-  allowPrerelease = false
-
-  /**
-   * *GitHub provider only.* Get all release notes (from current version to latest), not just the latest.
-   * @default false
-   */
-  fullChangelog = false
-
-  /**
    * Whether to allow version downgrade (when a user from the beta channel wants to go back to the stable channel).
    *
    * Taken in account only if channel differs (pre-release version component in terms of semantic versioning).
@@ -52,9 +39,26 @@ export abstract class AppUpdater extends EventEmitter {
   allowDowngrade = false
 
   /**
+   * Whether to use semantic versioning to compare/order app versions.
+   *
+   * If false, there is no concept of upgrade/downgrade, so any difference between the current version string
+   *  and the update version string will trigger an update.
+   * If set to "loose", current and update versions will be parsed with `{ loose: true }` option set.
+   *
+   * @default true
+   */
+  useSemver: boolean | "loose" = true
+
+  /**
    * The current application version.
    */
-  readonly currentVersion: SemVer
+  get currentVersion(): SemVer | null {
+    if (this.useSemver === false) return null
+
+    return parseVersion(this.currentVersionString, this.useSemver === "loose" ? { loose: true } : undefined)
+  }
+
+  readonly currentVersionString: string
 
   private _channel: string | null = null
 
@@ -170,13 +174,7 @@ export abstract class AppUpdater extends EventEmitter {
       this.httpExecutor = null as any
     }
 
-    const currentVersionString = this.app.version
-    const currentVersion = parseVersion(currentVersionString)
-    if (currentVersion == null) {
-      throw newError(`App version is not a valid semver version: "${currentVersionString}"`, "ERR_UPDATER_INVALID_VERSION")
-    }
-    this.currentVersion = currentVersion
-    this.allowPrerelease = hasPrereleaseComponents(currentVersion)
+    this.currentVersionString = this.app.version
 
     if (options != null) {
       this.setFeedURL(options)
@@ -316,7 +314,9 @@ export abstract class AppUpdater extends EventEmitter {
   }
 
   private async isUpdateAvailable(updateInfo: UpdateInfo): Promise<boolean> {
-    const latestVersion = parseVersion(updateInfo.version)
+    if (this.useSemver === false) return updateInfo.version !== this.currentVersionString
+
+    const latestVersion = parseVersion(updateInfo.version, this.useSemver === "loose" ? { loose: true } : undefined)
     if (latestVersion == null) {
       throw newError(
         `This file could not be downloaded, or the latest version (from update server) does not have a valid semver version: "${updateInfo.version}"`,
@@ -325,6 +325,9 @@ export abstract class AppUpdater extends EventEmitter {
     }
 
     const currentVersion = this.currentVersion
+    if (currentVersion == null) {
+      throw newError(`App version is not a valid semver version: "${this.currentVersionString}"`, "ERR_UPDATER_INVALID_VERSION")
+    }
     if (isVersionsEqual(latestVersion, currentVersion)) {
       return false
     }
@@ -376,9 +379,13 @@ export abstract class AppUpdater extends EventEmitter {
     const result = await this.getUpdateInfoAndProvider()
     const updateInfo = result.info
     if (!(await this.isUpdateAvailable(updateInfo))) {
-      this._logger.info(
-        `Update for version ${this.currentVersion} is not available (latest version: ${updateInfo.version}, downgrade is ${this.allowDowngrade ? "allowed" : "disallowed"}).`
-      )
+      if (this.useSemver === false) {
+        this._logger.info(`Update for version ${this.currentVersionString} is not available (latest version: ${updateInfo.version}).`)
+      } else {
+        this._logger.info(
+          `Update for version ${this.currentVersionString} is not available (latest version: ${updateInfo.version}, downgrade is ${this.allowDowngrade ? "allowed" : "disallowed"}).`
+        )
+      }
       this.emit("update-not-available", updateInfo)
       return {
         versionInfo: updateInfo,
@@ -644,11 +651,6 @@ export interface DownloadUpdateOptions {
   readonly updateInfoAndProvider: UpdateInfoAndProvider
   readonly requestHeaders: OutgoingHttpHeaders
   readonly cancellationToken: CancellationToken
-}
-
-function hasPrereleaseComponents(version: SemVer) {
-  const versionPrereleaseComponent = getVersionPreleaseComponents(version)
-  return versionPrereleaseComponent != null && versionPrereleaseComponent.length > 0
 }
 
 /** @private */

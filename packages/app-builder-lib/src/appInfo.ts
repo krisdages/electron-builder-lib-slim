@@ -145,14 +145,8 @@ export class AppInfo {
     return `Copyright © ${new Date().getFullYear()} ${this.companyName || this.productName}`
   }
 
-  async computePackageUrl(): Promise<string | null> {
-    const url = this.info.metadata.homepage || this.notNullDevMetadata.homepage
-    if (url != null) {
-      return url
-    }
-
-    const info = await this.info.repositoryInfo
-    return info == null || info.type !== "github" ? null : `https://${info.domain}/${info.user}/${info.project}`
+  computePackageUrl(): string | null {
+    return this.info.metadata.homepage ?? this.notNullDevMetadata.homepage ?? null
   }
 }
 

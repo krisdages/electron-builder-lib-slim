@@ -1,63 +1,34 @@
 import { addValue, Arch, archFromString, AsyncTaskManager, DebugLogger, deepAssign, InvalidConfigurationError, log, safeStringifyJson, serializeToYaml, TmpDir } from "builder-util"
 import { CancellationToken } from "builder-util-runtime"
+import { getArtifactArchName } from "builder-util/out/arch"
 import { executeFinally, orNullIfFileNotExist } from "builder-util/out/promise"
 import { EventEmitter } from "events"
-import { mkdirs, chmod, outputFile } from "fs-extra"
-import * as isCI from "is-ci"
+import { chmod, mkdirs, outputFile } from "fs-extra"
 import { Lazy } from "lazy-val"
+import { release as getOsRelease } from "os"
 import * as path from "path"
-import { getArtifactArchName } from "builder-util/out/arch"
 import { AppInfo } from "./appInfo"
 import { readAsarJson } from "./asar/asar"
 import { AfterPackContext, Configuration } from "./configuration"
-import { Platform, SourceRepositoryInfo, Target } from "./core"
-import { createElectronFrameworkSupport } from "./electron/ElectronFramework"
+import { Platform, Target } from "./core"
+import { createElectronFrameworkSupport as createFrameworkInfo } from "./electron/ElectronFramework"
 import { Framework } from "./Framework"
-import { LibUiFramework } from "./frameworks/LibUiFramework"
 import { Metadata } from "./options/metadata"
 import { AsarOptions } from "./options/PlatformSpecificBuildOptions"
 import { ArtifactBuildStarted, ArtifactCreated, PackagerOptions } from "./packagerApi"
 import { PlatformPackager, resolveFunction } from "./platformPackager"
-import { ProtonFramework } from "./ProtonFramework"
 import { computeArchToTargetNamesMap, createTargets, NoOpTarget } from "./targets/targetFactory"
 import { computeDefaultAppDirectory, getConfig, validateConfig } from "./util/config"
 import { expandMacro } from "./util/macroExpander"
 import { createLazyProductionDeps, NodeModuleDirInfo } from "./util/packageDependencies"
 import { checkMetadata, readPackageJson } from "./util/packageMetadata"
-import { getRepositoryInfo } from "./util/repositoryInfo"
-import { installOrRebuild, nodeGypRebuild } from "./util/yarn"
 import { PACKAGE_VERSION } from "./version"
-import { release as getOsRelease } from "os"
 
 function addHandler(emitter: EventEmitter, event: string, handler: (...args: Array<any>) => void) {
   emitter.on(event, handler)
 }
 
-async function createFrameworkInfo(configuration: Configuration, packager: Packager): Promise<Framework> {
-  let framework = configuration.framework
-  if (framework != null) {
-    framework = framework.toLowerCase()
-  }
-
-  let nodeVersion = configuration.nodeVersion
-  if (framework === "electron" || framework == null) {
-    return await createElectronFrameworkSupport(configuration, packager)
-  }
-
-  if (nodeVersion == null || nodeVersion === "current") {
-    nodeVersion = process.versions.node
-  }
-
-  const distMacOsName = `${packager.appInfo.productFilename}.app`
-  const isUseLaunchUi = configuration.launchUiVersion !== false
-  if (framework === "proton" || framework === "proton-native") {
-    return new ProtonFramework(nodeVersion, distMacOsName, isUseLaunchUi)
-  } else if (framework === "libui") {
-    return new LibUiFramework(nodeVersion, distMacOsName, isUseLaunchUi)
-  } else {
-    throw new InvalidConfigurationError(`Unknown framework: ${framework}`)
-  }
-}
+export { createFrameworkInfo }
 
 export class Packager {
   readonly projectDir: string
@@ -106,17 +77,11 @@ export class Packager {
 
   readonly tempDirManager = new TmpDir("packager")
 
-  private _repositoryInfo = new Lazy<SourceRepositoryInfo | null>(() => getRepositoryInfo(this.projectDir, this.metadata, this.devMetadata))
-
   private readonly afterPackHandlers: Array<(context: AfterPackContext) => Promise<any> | null> = []
 
   readonly options: PackagerOptions
 
   readonly debugLogger = new DebugLogger(log.isDebugEnabled)
-
-  get repositoryInfo(): Promise<SourceRepositoryInfo | null> {
-    return this._repositoryInfo.value
-  }
 
   private nodeDependencyInfo = new Map<string, Lazy<Array<any>>>()
 
@@ -280,13 +245,6 @@ export class Packager {
     }
   }
 
-  async callAppxManifestCreated(path: string): Promise<void> {
-    const handler = resolveFunction(this.config.appxManifestCreated, "appxManifestCreated")
-    if (handler != null) {
-      await Promise.resolve(handler(path))
-    }
-  }
-
   async callMsiProjectCreated(path: string): Promise<void> {
     const handler = resolveFunction(this.config.msiProjectCreated, "msiProjectCreated")
     if (handler != null) {
@@ -339,15 +297,11 @@ export class Packager {
   }
 
   // external caller of this method always uses isTwoPackageJsonProjectLayoutUsed=false and appDir=projectDir, no way (and need) to use another values
-  async _build(configuration: Configuration, metadata: Metadata, devMetadata: Metadata | null, repositoryInfo?: SourceRepositoryInfo): Promise<BuildResult> {
+  async _build(configuration: Configuration, metadata: Metadata, devMetadata: Metadata | null): Promise<BuildResult> {
     await validateConfig(configuration, this.debugLogger)
     this._configuration = configuration
     this._metadata = metadata
     this._devMetadata = devMetadata
-
-    if (repositoryInfo != null) {
-      this._repositoryInfo.value = Promise.resolve(repositoryInfo)
-    }
 
     this._appInfo = new AppInfo(this, null)
     this._framework = await createFrameworkInfo(this.config, this)
@@ -359,7 +313,7 @@ export class Packager {
       })
     )
 
-    if (!isCI && (process.stdout as any).isTTY) {
+    if ((process.stdout as any).isTTY) {
       const effectiveConfigFile = path.join(commonOutDirWithoutPossibleOsMacro, "builder-effective-config.yaml")
       log.info({ file: log.filePath(effectiveConfigFile) }, "writing effective config")
       await outputFile(effectiveConfigFile, getSafeEffectiveConfig(configuration))
@@ -486,50 +440,6 @@ export class Packager {
 
       default:
         throw new Error(`Unknown platform: ${platform}`)
-    }
-  }
-
-  public async installAppDependencies(platform: Platform, arch: Arch): Promise<any> {
-    if (this.options.prepackaged != null || !this.framework.isNpmRebuildRequired) {
-      return
-    }
-
-    const frameworkInfo = { version: this.framework.version, useCustomDist: true }
-    const config = this.config
-    if (config.nodeGypRebuild === true) {
-      await nodeGypRebuild(platform.nodeName, Arch[arch], frameworkInfo)
-    }
-
-    if (config.npmRebuild === false) {
-      log.info({ reason: "npmRebuild is set to false" }, "skipped dependencies rebuild")
-      return
-    }
-
-    const beforeBuild = resolveFunction(config.beforeBuild, "beforeBuild")
-    if (beforeBuild != null) {
-      const performDependenciesInstallOrRebuild = await beforeBuild({
-        appDir: this.appDir,
-        electronVersion: this.config.electronVersion!,
-        platform,
-        arch: Arch[arch],
-      })
-
-      // If beforeBuild resolves to false, it means that handling node_modules is done outside of electron-builder.
-      this._nodeModulesHandledExternally = !performDependenciesInstallOrRebuild
-      if (!performDependenciesInstallOrRebuild) {
-        return
-      }
-    }
-
-    if (config.buildDependenciesFromSource === true && platform.nodeName !== process.platform) {
-      log.info({ reason: "platform is different and buildDependenciesFromSource is set to true" }, "skipped dependencies rebuild")
-    } else {
-      await installOrRebuild(config, this.appDir, {
-        frameworkInfo,
-        platform: platform.nodeName,
-        arch: Arch[arch],
-        productionDeps: this.getNodeDependencyInfo(null),
-      })
     }
   }
 

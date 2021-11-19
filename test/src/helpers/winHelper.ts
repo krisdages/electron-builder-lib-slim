@@ -1,5 +1,5 @@
 import { walk } from "builder-util/out/fs"
-import { Arch, Platform } from "electron-builder"
+import { Arch, Platform } from "app-builder-lib"
 import { readAsarJson } from "app-builder-lib/out/asar/asar"
 import { outputFile } from "fs-extra"
 import * as fs from "fs/promises"

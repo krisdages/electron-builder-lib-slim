@@ -1,4 +1,4 @@
-import { Arch, build, PackagerOptions, Platform } from "electron-builder"
+import { Arch, build, PackagerOptions, Platform } from "app-builder-lib"
 import * as fs from "fs/promises"
 import * as path from "path"
 import { assertThat } from "./helpers/fileAssert"

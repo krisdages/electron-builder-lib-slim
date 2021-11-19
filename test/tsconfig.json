@@ -14,10 +14,7 @@
       "path": "../packages/builder-util-runtime"
     },
     {
-      "path": "../packages/electron-builder"
-    },
-    {
-      "path": "../packages/electron-publish"
+      "path": "../packages/app-builder-lib"
     },
     {
       "path": "../packages/electron-updater"

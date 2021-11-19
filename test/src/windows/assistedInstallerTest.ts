@@ -1,4 +1,4 @@
-import { Arch, archFromString, Platform } from "electron-builder"
+import { Arch, archFromString, Platform } from "app-builder-lib"
 import * as fs from "fs/promises"
 import * as path from "path"
 import { app, assertPack, copyTestAsset } from "../helpers/packTester"

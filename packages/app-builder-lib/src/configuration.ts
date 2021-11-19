@@ -2,14 +2,10 @@ import { Arch } from "builder-util"
 import { BeforeBuildContext, Target } from "./core"
 import { ElectronBrandingOptions, ElectronDownloadOptions } from "./electron/ElectronFramework"
 import { PrepareApplicationStageDirectoryOptions } from "./Framework"
-import { AppXOptions } from "./options/AppXOptions"
-import { AppImageOptions, DebOptions, FlatpakOptions, LinuxConfiguration, LinuxTargetSpecificOptions } from "./options/linuxOptions"
-import { DmgOptions, MacConfiguration, MasConfiguration } from "./options/macOptions"
+import { AppImageOptions, LinuxConfiguration } from "./options/linuxOptions"
+import { DmgOptions, MacConfiguration } from "./options/macOptions"
 import { MsiOptions } from "./options/MsiOptions"
-import { PkgOptions } from "./options/pkgOptions"
 import { PlatformSpecificBuildOptions } from "./options/PlatformSpecificBuildOptions"
-import { SnapOptions } from "./options/SnapOptions"
-import { SquirrelWindowsOptions } from "./options/SquirrelWindowsOptions"
 import { WindowsConfiguration } from "./options/winOptions"
 import { BuildResult } from "./packager"
 import { ArtifactBuildStarted, ArtifactCreated } from "./packagerApi"
@@ -46,21 +42,9 @@ export interface Configuration extends PlatformSpecificBuildOptions {
    */
   readonly mac?: MacConfiguration | null
   /**
-   * MAS (Mac Application Store) options.
-   */
-  readonly mas?: MasConfiguration | null
-  /**
-   * MAS (Mac Application Store) development options (`mas-dev` target).
-   */
-  readonly masDev?: MasConfiguration | null
-  /**
    * macOS DMG options.
    */
   readonly dmg?: DmgOptions | null
-  /**
-   * macOS PKG options.
-   */
-  readonly pkg?: PkgOptions | null
 
   /**
    * Options related to how build Windows targets.
@@ -69,36 +53,17 @@ export interface Configuration extends PlatformSpecificBuildOptions {
   readonly nsis?: NsisOptions | null
   readonly nsisWeb?: NsisWebOptions | null
   readonly portable?: PortableOptions | null
-  readonly appx?: AppXOptions | null
   /** @private */
   readonly msi?: MsiOptions | null
-  readonly squirrelWindows?: SquirrelWindowsOptions | null
 
   /**
    * Options related to how build Linux targets.
    */
   readonly linux?: LinuxConfiguration | null
   /**
-   * Debian package options.
-   */
-  readonly deb?: DebOptions | null
-  /**
-   * Snap options.
-   */
-  readonly snap?: SnapOptions | null
-  /**
    * AppImage options.
    */
   readonly appImage?: AppImageOptions | null
-  /**
-   * Flatpak options.
-   */
-  readonly flatpak?: FlatpakOptions | null
-  readonly pacman?: LinuxTargetSpecificOptions | null
-  readonly rpm?: LinuxTargetSpecificOptions | null
-  readonly freebsd?: LinuxTargetSpecificOptions | null
-  readonly p5p?: LinuxTargetSpecificOptions | null
-  readonly apk?: LinuxTargetSpecificOptions | null
 
   /**
    * Whether to include *all* of the submodules node_modules directories
@@ -106,18 +71,6 @@ export interface Configuration extends PlatformSpecificBuildOptions {
    */
   includeSubNodeModules?: boolean
 
-  /**
-   * Whether to build the application native dependencies from source.
-   * @default false
-   */
-  buildDependenciesFromSource?: boolean
-  /**
-   * Whether to execute `node-gyp rebuild` before starting to package the app.
-   *
-   * Don't [use](https://github.com/electron-userland/electron-builder/issues/683#issuecomment-241214075) [npm](http://electron.atom.io/docs/tutorial/using-native-node-modules/#using-npm) (neither `.npmrc`) for configuring electron headers. Use `electron-builder node-gyp-rebuild` instead.
-   * @default false
-   */
-  readonly nodeGypRebuild?: boolean
   /**
    * Additional command line arguments to use when installing app native deps.
    */
@@ -133,11 +86,6 @@ export interface Configuration extends PlatformSpecificBuildOptions {
    * If `TRAVIS_BUILD_NUMBER` or `APPVEYOR_BUILD_NUMBER` or `CIRCLE_BUILD_NUM` or `BUILD_NUMBER` or `bamboo.buildNumber` or `CI_PIPELINE_IID` env defined, it will be used as a build version (`version.build_number`).
    */
   readonly buildVersion?: string | null
-
-  /**
-   * Whether to use [electron-compile](http://github.com/electron/electron-compile) to compile app. Defaults to `true` if `electron-compile` in the dependencies. And `false` if in the `devDependencies` or doesn't specified.
-   */
-  readonly electronCompile?: boolean
 
   /**
    * Returns the path to custom Electron build (e.g. `~/electron/out/R`). Zip files must follow the pattern `electron-v${version}-${platformName}-${arch}.zip`, otherwise it will be assumed to be an unpacked Electron app directory
@@ -186,16 +134,6 @@ export interface Configuration extends PlatformSpecificBuildOptions {
   readonly nodeVersion?: string | null
 
   /**
-   * *libui-based frameworks only* The version of LaunchUI you are packaging for. Applicable for Windows only. Defaults to version suitable for used framework version.
-   */
-  readonly launchUiVersion?: boolean | string | null
-
-  /**
-   * The framework name. One of `electron`, `proton`, `libui`. Defaults to `electron`.
-   */
-  readonly framework?: string | null
-
-  /**
    * The function (or path to file or module id) to be [run before pack](#beforepack)
    */
   readonly beforePack?: ((context: BeforePackContext) => Promise<any> | any) | string | null
@@ -226,10 +164,6 @@ export interface Configuration extends PlatformSpecificBuildOptions {
    */
   readonly msiProjectCreated?: ((path: string) => Promise<any> | any) | string | null
   /**
-   * Appx manifest created on disk - not packed into .appx package yet.
-   */
-  readonly appxManifestCreated?: ((path: string) => Promise<any> | any) | string | null
-  /**
    * The function (or path to file or module id) to be [run on each node module](#onnodemodulefile) file.
    */
   readonly onNodeModuleFile?: ((file: string) => void) | string | null
@@ -239,12 +173,6 @@ export interface Configuration extends PlatformSpecificBuildOptions {
    * If provided and `node_modules` are missing, it will not invoke production dependencies check.
    */
   readonly beforeBuild?: ((context: BeforeBuildContext) => Promise<any>) | string | null
-
-  /**
-   * Whether to build using Electron Build Service if target not supported on current OS.
-   * @default true
-   */
-  readonly remoteBuild?: boolean
 
   /**
    * Whether to include PDB files.

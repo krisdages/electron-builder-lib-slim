@@ -1,6 +1,6 @@
 // test custom windows sign using path to file
 
-import { CustomWindowsSignTaskConfiguration, FileCodeSigningInfo } from "electron-builder"
+import { CustomWindowsSignTaskConfiguration, FileCodeSigningInfo } from "app-builder-lib"
 
 export default async function (configuration: CustomWindowsSignTaskConfiguration) {
   const info = configuration.cscInfo!! as FileCodeSigningInfo

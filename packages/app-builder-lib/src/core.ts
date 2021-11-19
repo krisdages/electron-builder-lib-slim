@@ -105,9 +105,3 @@ export interface BeforeBuildContext {
   readonly arch: string
 }
 
-export interface SourceRepositoryInfo {
-  type?: string
-  domain?: string
-  user: string
-  project: string
-}

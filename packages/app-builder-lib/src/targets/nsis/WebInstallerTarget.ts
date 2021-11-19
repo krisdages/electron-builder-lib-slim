@@ -1,4 +1,4 @@
-import { computeDownloadUrl, getPublishConfigs, getPublishConfigsForUpdateInfo } from "../../publish/PublishManager"
+import { computeDownloadUrl, getPublishConfigs } from "../../publish/PublishManager"
 import { WinPackager } from "../../winPackager"
 import { NsisWebOptions } from "./nsisOptions"
 import { NsisTarget } from "./NsisTarget"
@@ -23,14 +23,15 @@ export class WebInstallerTarget extends NsisTarget {
 
     let appPackageUrl = options.appPackageUrl
     if (appPackageUrl == null) {
-      const publishConfigs = await getPublishConfigsForUpdateInfo(packager, await getPublishConfigs(packager, packager.info.config, null, false), null)
+      const publishConfigs = await getPublishConfigs(packager, packager.info.config, null, false)
       if (publishConfigs == null || publishConfigs.length === 0) {
         throw new Error("Cannot compute app package download URL")
       }
 
       appPackageUrl = computeDownloadUrl(publishConfigs[0], null, packager)
-
-      defines.APP_PACKAGE_URL_IS_INCOMLETE = null
+      if (appPackageUrl != null) {
+        defines.APP_PACKAGE_URL_IS_INCOMLETE = null
+      }
     }
 
     defines.APP_PACKAGE_URL = appPackageUrl

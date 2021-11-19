@@ -1,7 +1,6 @@
-import { DebugLogger } from "builder-util/out/DebugLogger"
-import { Configuration, Platform } from "electron-builder"
+import { Platform } from "app-builder-lib"
 import { validateConfig } from "app-builder-lib/out/util/config"
-import { createYargs, configureBuildCommand, normalizeOptions, CliOptions } from "electron-builder/out/builder"
+import { DebugLogger } from "builder-util/out/DebugLogger"
 import { app, appThrows, linuxDirTarget } from "./helpers/packTester"
 
 test.ifAll.ifDevOrLinuxCi(
@@ -75,13 +74,4 @@ test.ifAll.ifDevOrLinuxCi("files", () => {
     },
     new DebugLogger()
   )
-})
-
-test.ifAll.ifDevOrLinuxCi("null string as null", async () => {
-  const yargs = configureBuildCommand(createYargs())
-  const options = normalizeOptions(yargs.parse(["-c.mac.identity=null", "--config.mac.hardenedRuntime=false"]) as CliOptions)
-  const config = options.config as Configuration
-  await validateConfig(config, new DebugLogger())
-  expect(config.mac!.identity).toBeNull()
-  expect(config.mac!.hardenedRuntime).toBe(false)
 })

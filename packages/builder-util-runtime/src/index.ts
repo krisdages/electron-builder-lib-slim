@@ -13,23 +13,7 @@ export {
   parseJson,
   configureRequestUrl,
 } from "./httpExecutor"
-export {
-  BintrayOptions,
-  CustomPublishOptions,
-  GenericServerOptions,
-  GithubOptions,
-  KeygenOptions,
-  BitbucketOptions,
-  SnapStoreOptions,
-  PublishConfiguration,
-  S3Options,
-  SpacesOptions,
-  BaseS3Options,
-  getS3LikeProviderBaseUrl,
-  githubUrl,
-  PublishProvider,
-  AllPublishOptions,
-} from "./publishOptions"
+export { CustomPublishOptions, GenericServerOptions, PublishConfiguration, PublishProvider, AllPublishOptions } from "./publishOptions"
 export { UpdateInfo, UpdateFileInfo, WindowsUpdateInfo, BlockMapDataHolder, PackageFileInfo, ReleaseNoteInfo } from "./updateInfo"
 export { parseDn } from "./rfc2253Parser"
 export { UUID } from "./uuid"

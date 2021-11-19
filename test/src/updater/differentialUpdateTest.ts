@@ -1,7 +1,7 @@
-import { doSpawn } from "builder-util"
-import { GenericServerOptions, S3Options } from "builder-util-runtime"
+import { Arch, Configuration, Platform } from "app-builder-lib"
 import { getBinFromUrl } from "app-builder-lib/out/binDownload"
-import { Arch, Configuration, Platform } from "electron-builder"
+import { doSpawn } from "builder-util"
+import { GenericServerOptions } from "builder-util-runtime"
 import { AppImageUpdater } from "electron-updater/out/AppImageUpdater"
 import { MacUpdater } from "electron-updater/out/MacUpdater"
 import { NsisUpdater } from "electron-updater/out/NsisUpdater"
@@ -9,10 +9,10 @@ import { EventEmitter } from "events"
 import { move } from "fs-extra"
 import * as path from "path"
 import { TmpDir } from "temp-file"
-import { assertPack, removeUnstableProperties } from "../helpers/packTester"
-import { tuneTestUpdater, writeUpdateConfig } from "../helpers/updaterTestUtil"
 import { nsisDifferentialUpdateFakeSnapshot, nsisWebDifferentialUpdateTestFakeSnapshot } from "../helpers/differentialUpdateTestSnapshotData"
+import { assertPack, removeUnstableProperties } from "../helpers/packTester"
 import { TestAppAdapter } from "../helpers/TestAppAdapter"
+import { tuneTestUpdater, writeUpdateConfig } from "../helpers/updaterTestUtil"
 
 /*
 
@@ -43,9 +43,8 @@ test.ifAll.ifDevOrWinCi("web installer", async () => {
           // package in any case compressed, customization is explicitly disabled - "do not allow to change compression level to avoid different packages"
           compression: (process.env.COMPRESSION as any) || "store",
           publish: {
-            provider: "s3",
-            bucket: "develar",
-            path: "test",
+            provider: "generic",
+            url: "https://develar.s3.amazonaws.com/test"
           },
         },
       },
@@ -104,9 +103,8 @@ test.ifAll.ifDevOrWinCi("nsis", async () => {
           // package in any case compressed, customization is explicitly disabled - "do not allow to change compression level to avoid different packages"
           compression: (process.env.COMPRESSION as any) || "store",
           publish: {
-            provider: "s3",
-            bucket: "develar",
-            path: "test",
+            provider: "generic",
+            url: "https://develar.s3.amazonaws.com/test"
           },
         },
       },
@@ -200,9 +198,8 @@ async function buildApp(version: string, outDirs: Array<string>, targets: Map<Pl
         ...extraConfig,
         compression: "normal",
         publish: {
-          provider: "s3",
-          bucket: "develar",
-          path: "test",
+          provider: "generic",
+          url: "https://develar.s3.amazonaws.com/test",
         },
       },
     },
@@ -320,7 +317,7 @@ async function testBlockMap(oldDir: string, newDir: string, updaterClass: any, a
         throw new Error(`currentUpdaterCacheDirName must be not null, appUpdateConfigPath: ${updater._appUpdateConfigPath}`)
       }
 
-      updater.updateConfigPath = await writeUpdateConfig<GenericServerOptions | S3Options>({
+      updater.updateConfigPath = await writeUpdateConfig<GenericServerOptions>({
         provider: "generic",
         updaterCacheDirName: currentUpdaterCacheDirName,
         url: `http://127.0.0.1:${port}`,

@@ -1,7 +1,7 @@
 import { executeFinally } from "builder-util/out/promise"
-import { PublishOptions } from "electron-publish/out/publisher"
-import { log, InvalidConfigurationError } from "builder-util"
+import { log, InvalidConfigurationError, Arch, archFromString } from "builder-util"
 import { asArray } from "builder-util-runtime"
+import { Platform } from "./core"
 import { Packager } from "./packager"
 import { PackagerOptions } from "./packagerApi"
 import { resolveFunction } from "./platformPackager"
@@ -15,7 +15,6 @@ export {
   Target,
   DIR_TARGET,
   BeforeBuildContext,
-  SourceRepositoryInfo,
   TargetSpecificOptions,
   TargetConfigType,
   DEFAULT_TARGET,
@@ -26,18 +25,14 @@ export { Configuration, AfterPackContext, MetadataDirectories } from "./configur
 export { ElectronBrandingOptions, ElectronDownloadOptions, ElectronPlatformName } from "./electron/ElectronFramework"
 export { PlatformSpecificBuildOptions, AsarOptions, FileSet, Protocol, ReleaseInfo } from "./options/PlatformSpecificBuildOptions"
 export { FileAssociation } from "./options/FileAssociation"
-export { MacConfiguration, DmgOptions, MasConfiguration, MacOsTargetName, DmgContent, DmgWindow } from "./options/macOptions"
-export { PkgOptions, PkgBackgroundOptions, BackgroundAlignment, BackgroundScaling } from "./options/pkgOptions"
+export { MacConfiguration, DmgOptions, MacOsTargetName, DmgContent, DmgWindow } from "./options/macOptions"
 export { WindowsConfiguration } from "./options/winOptions"
-export { AppXOptions } from "./options/AppXOptions"
 export { MsiOptions } from "./options/MsiOptions"
 export { CommonWindowsInstallerConfiguration } from "./options/CommonWindowsInstallerConfiguration"
 export { NsisOptions, NsisWebOptions, PortableOptions, CommonNsisOptions } from "./targets/nsis/nsisOptions"
 export { LinuxConfiguration, DebOptions, CommonLinuxOptions, LinuxTargetSpecificOptions, AppImageOptions, FlatpakOptions } from "./options/linuxOptions"
-export { SnapOptions } from "./options/SnapOptions"
 export { Metadata, AuthorMetadata, RepositoryInfo } from "./options/metadata"
 export { AppInfo } from "./appInfo"
-export { SquirrelWindowsOptions } from "./options/SquirrelWindowsOptions"
 export {
   WindowsSignOptions,
   CustomWindowsSignTaskConfiguration,
@@ -47,15 +42,13 @@ export {
   CertificateFromStoreInfo,
 } from "./codeSign/windowsCodeSign"
 export { CancellationToken, ProgressInfo } from "builder-util-runtime"
-export { PublishOptions, UploadTask } from "electron-publish"
 export { PublishManager } from "./publish/PublishManager"
 export { PlatformPackager } from "./platformPackager"
 export { Framework, PrepareApplicationStageDirectoryOptions } from "./Framework"
-export { buildForge, ForgeOptions } from "./forge-maker"
 
 const expectedOptions = new Set(["publish", "targets", "mac", "win", "linux", "projectDir", "platformPackagerFactory", "config", "effectiveOptionComputed", "prepackaged"])
 
-export function checkBuildRequestOptions(options: PackagerOptions & PublishOptions) {
+export function checkBuildRequestOptions(options: PackagerOptions) {
   for (const optionName of Object.keys(options)) {
     if (!expectedOptions.has(optionName) && (options as any)[optionName] !== undefined) {
       throw new InvalidConfigurationError(`Unknown option "${optionName}"`)
@@ -63,10 +56,10 @@ export function checkBuildRequestOptions(options: PackagerOptions & PublishOptio
   }
 }
 
-export function build(options: PackagerOptions & PublishOptions, packager: Packager = new Packager(options)): Promise<Array<string>> {
+export function build(options: PackagerOptions, packager: Packager = new Packager(options)): Promise<Array<string>> {
   checkBuildRequestOptions(options)
 
-  const publishManager = new PublishManager(packager, options)
+  const publishManager = new PublishManager(packager)
   const sigIntHandler = () => {
     log.warn("cancelled by SIGINT")
     packager.cancellationToken.cancel()
@@ -89,16 +82,6 @@ export function build(options: PackagerOptions & PublishOptions, packager: Packa
 
       for (const newArtifact of newArtifacts) {
         buildResult.artifactPaths.push(newArtifact)
-        for (const publishConfiguration of publishConfigurations) {
-          publishManager.scheduleUpload(
-            publishConfiguration,
-            {
-              file: newArtifact,
-              arch: null,
-            },
-            packager.appInfo
-          )
-        }
       }
     }
     return buildResult.artifactPaths
@@ -115,4 +98,19 @@ export function build(options: PackagerOptions & PublishOptions, packager: Packa
 
     return promise.then(() => process.removeListener("SIGINT", sigIntHandler))
   })
+}
+
+export function createTargets(platforms: Array<Platform>, type?: string | null, arch?: string | null): Map<Platform, Map<Arch, Array<string>>> {
+  const targets = new Map<Platform, Map<Arch, Array<string>>>()
+  for (const platform of platforms) {
+    const archs =
+      arch === "all" ? (platform === Platform.MAC ? [Arch.x64, Arch.arm64, Arch.universal] : [Arch.x64, Arch.ia32]) : [archFromString(arch == null ? process.arch : arch)]
+    const archToType = new Map<Arch, Array<string>>()
+    targets.set(platform, archToType)
+
+    for (const arch of archs) {
+      archToType.set(arch, type == null ? [] : [type])
+    }
+  }
+  return targets
 }

@@ -1,5 +1,5 @@
 import { copyOrLinkFile } from "builder-util/out/fs"
-import { createTargets, DIR_TARGET, Platform } from "electron-builder"
+import { createTargets, DIR_TARGET, Platform } from "app-builder-lib"
 import * as fs from "fs/promises"
 import * as path from "path"
 import { assertThat } from "../helpers/fileAssert"

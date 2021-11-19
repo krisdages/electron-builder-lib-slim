@@ -1,4 +1,4 @@
-import { Platform, DIR_TARGET } from "electron-builder"
+import { Platform, DIR_TARGET } from "app-builder-lib"
 import * as path from "path"
 import { CheckingWinPackager } from "../helpers/CheckingPackager"
 import { app, appThrows, assertPack, platform } from "../helpers/packTester"

@@ -1,17 +1,14 @@
 import BluebirdPromise from "bluebird-lst"
 import { Arch, log, safeStringifyJson, serializeToYaml } from "builder-util"
-import { GenericServerOptions, PublishConfiguration, UpdateInfo, WindowsUpdateInfo } from "builder-util-runtime"
-import { outputFile, outputJson, readFile } from "fs-extra"
-import { Lazy } from "lazy-val"
+import { GenericServerOptions, PublishConfiguration, UpdateInfo } from "builder-util-runtime"
+import { outputFile, readFile } from "fs-extra"
 import * as path from "path"
-import * as semver from "semver"
 import { Platform } from "../core"
 import { ReleaseInfo } from "../options/PlatformSpecificBuildOptions"
 import { Packager } from "../packager"
 import { ArtifactCreated } from "../packagerApi"
 import { PlatformPackager } from "../platformPackager"
 import { hashFile } from "../util/hash"
-import { computeDownloadUrl, getPublishConfigsForUpdateInfo } from "./PublishManager"
 
 async function getReleaseInfo(packager: PlatformPackager<any>) {
   const releaseInfo: ReleaseInfo = { ...(packager.platformSpecificBuildOptions.releaseInfo || packager.config.releaseInfo) }
@@ -46,7 +43,7 @@ function isGenerateUpdatesFilesForAllChannels(packager: PlatformPackager<any>) {
 function computeChannelNames(packager: PlatformPackager<any>, publishConfig: PublishConfiguration): Array<string> {
   const currentChannel: string = (publishConfig as GenericServerOptions).channel || "latest"
   // for GitHub should be pre-release way be used
-  if (currentChannel === "alpha" || publishConfig.provider === "github" || !isGenerateUpdatesFilesForAllChannels(packager)) {
+  if (currentChannel === "alpha" || !isGenerateUpdatesFilesForAllChannels(packager)) {
     return [currentChannel]
   }
 
@@ -82,74 +79,29 @@ export interface UpdateInfoFileTask {
   readonly packager: PlatformPackager<any>
 }
 
-function computeIsisElectronUpdater1xCompatibility(updaterCompatibility: string | null, publishConfiguration: PublishConfiguration, packager: Packager) {
-  if (updaterCompatibility != null) {
-    return semver.satisfies("1.0.0", updaterCompatibility)
-  }
-
-  // spaces is a new publish provider, no need to keep backward compatibility
-  if (publishConfiguration.provider === "spaces") {
-    return false
-  }
-
-  const updaterVersion = packager.metadata.dependencies == null ? null : packager.metadata.dependencies["electron-updater"]
-  return updaterVersion == null || semver.lt(updaterVersion, "4.0.0")
-}
-
 /** @internal */
-export async function createUpdateInfoTasks(event: ArtifactCreated, _publishConfigs: Array<PublishConfiguration>): Promise<Array<UpdateInfoFileTask>> {
+export async function createUpdateInfoTasks(event: ArtifactCreated, publishConfigs: Array<PublishConfiguration>): Promise<Array<UpdateInfoFileTask>> {
   const packager = event.packager
-  const publishConfigs = await getPublishConfigsForUpdateInfo(packager, _publishConfigs, event.arch)
   if (publishConfigs == null || publishConfigs.length === 0) {
     return []
   }
 
   const outDir = event.target!.outDir
   const version = packager.appInfo.version
-  const sha2 = new Lazy<string>(() => hashFile(event.file, "sha256", "hex"))
-  const isMac = packager.platform === Platform.MAC
   const createdFiles = new Set<string>()
   const sharedInfo = await createUpdateInfo(version, event, await getReleaseInfo(packager))
   const tasks: Array<UpdateInfoFileTask> = []
-  const electronUpdaterCompatibility = packager.platformSpecificBuildOptions.electronUpdaterCompatibility || packager.config.electronUpdaterCompatibility || ">=2.15"
   for (const publishConfiguration of publishConfigs) {
-    const isBintray = publishConfiguration.provider === "bintray"
     let dir = outDir
     // Bintray uses different variant of channel file info, better to generate it to a separate dir by always
-    if (isBintray || (publishConfigs.length > 1 && publishConfiguration !== publishConfigs[0])) {
+    if (/*isBintray || */ (publishConfigs.length > 1 && publishConfiguration !== publishConfigs[0])) {
       dir = path.join(outDir, publishConfiguration.provider)
     }
 
-    let isElectronUpdater1xCompatibility = computeIsisElectronUpdater1xCompatibility(electronUpdaterCompatibility, publishConfiguration, packager.info)
-
     let info = sharedInfo
-    // noinspection JSDeprecatedSymbols
-    if (isElectronUpdater1xCompatibility && packager.platform === Platform.WINDOWS) {
-      info = {
-        ...info,
-      }
-      // noinspection JSDeprecatedSymbols
-      ;(info as WindowsUpdateInfo).sha2 = await sha2.value
-    }
-
-    if (event.safeArtifactName != null && publishConfiguration.provider === "github") {
-      const newFiles = info.files.slice()
-      newFiles[0].url = event.safeArtifactName
-      info = {
-        ...info,
-        files: newFiles,
-        path: event.safeArtifactName,
-      }
-    }
 
     for (const channel of computeChannelNames(packager, publishConfiguration)) {
-      if (isMac && isElectronUpdater1xCompatibility && event.file.endsWith(".zip")) {
-        // write only for first channel (generateUpdatesFilesForAllChannels is a new functionality, no need to generate old mac update info file)
-        isElectronUpdater1xCompatibility = false
-        await writeOldMacInfo(publishConfiguration, outDir, dir, channel, createdFiles, version, packager)
-      }
-
-      const updateInfoFile = path.join(dir, (isBintray ? `${version}_` : "") + getUpdateInfoFileName(channel, packager, event.arch))
+      const updateInfoFile = path.join(dir, getUpdateInfoFileName(channel, packager, event.arch))
       if (createdFiles.has(updateInfoFile)) {
         continue
       }
@@ -242,38 +194,4 @@ export async function writeUpdateInfoFiles(updateInfoFileTasks: Array<UpdateInfo
     },
     { concurrency: 4 }
   )
-}
-
-// backward compatibility - write json file
-async function writeOldMacInfo(
-  publishConfig: PublishConfiguration,
-  outDir: string,
-  dir: string,
-  channel: string,
-  createdFiles: Set<string>,
-  version: string,
-  packager: PlatformPackager<any>
-) {
-  const isGitHub = publishConfig.provider === "github"
-  const updateInfoFile = isGitHub && outDir === dir ? path.join(dir, "github", `${channel}-mac.json`) : path.join(dir, `${channel}-mac.json`)
-  if (!createdFiles.has(updateInfoFile)) {
-    createdFiles.add(updateInfoFile)
-    await outputJson(
-      updateInfoFile,
-      {
-        version,
-        releaseDate: new Date().toISOString(),
-        url: computeDownloadUrl(publishConfig, packager.generateName2("zip", "mac", isGitHub), packager),
-      },
-      { spaces: 2 }
-    )
-
-    packager.info.dispatchArtifactCreated({
-      file: updateInfoFile,
-      arch: null,
-      packager,
-      target: null,
-      publishConfig,
-    })
-  }
 }

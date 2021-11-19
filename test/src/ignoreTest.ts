@@ -1,4 +1,4 @@
-import { DIR_TARGET, Platform, archFromString } from "electron-builder"
+import { DIR_TARGET, Platform, archFromString } from "app-builder-lib"
 import { outputFile } from "fs-extra"
 import * as path from "path"
 import { assertThat } from "./helpers/fileAssert"

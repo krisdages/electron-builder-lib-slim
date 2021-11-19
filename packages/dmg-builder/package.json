@@ -1,12 +1,12 @@
 {
-	"name": "dmg-builder",
-	"version": "22.14.7",
+	"name": "@krisdages/dmg-builder",
+	"version": "22.14.7-slim.0",
 	"main": "out/dmgUtil.js",
 	"author": "Vladimir Krivosheev",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/electron-userland/electron-builder.git",
+		"url": "git+https://github.com/krisdages/electron-builder-lib-slim.git",
 		"directory": "packages/dmg-builder"
 	},
 	"bugs": "https://github.com/electron-userland/electron-builder/issues",
@@ -17,7 +17,7 @@
 		"vendor"
 	],
 	"dependencies": {
-		"app-builder-lib": "workspace:*",
+		"app-builder-lib": "workspace:@krisdages/electron-builder-lib-slim@*",
 		"builder-util": "workspace:*",
 		"builder-util-runtime": "workspace:*",
 		"fs-extra": "^10.0.0",

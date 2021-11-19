@@ -1,4 +1,4 @@
-import { DIR_TARGET, Platform } from "electron-builder"
+import { DIR_TARGET, Platform } from "app-builder-lib"
 import { TmpDir } from "builder-util"
 import { copyDir } from "builder-util/out/fs"
 import { outputFile } from "fs-extra"

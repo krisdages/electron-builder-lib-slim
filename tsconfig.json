@@ -2,22 +2,13 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/electron-builder"
-    },
-    {
-      "path": "./packages/electron-publish"
+      "path": "./packages/app-builder-lib"
     },
     {
       "path": "./packages/electron-updater"
     },
     {
-      "path": "./packages/electron-builder-squirrel-windows"
-    },
-    {
       "path": "./test"
-    },
-    {
-      "path": "./scripts/renderer"
     }
   ]
 }

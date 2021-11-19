@@ -1,3 +1,8 @@
+# electron-builder-lib-slim
+
+Unsupported fork of electron-builder's app-builder-lib
+Removes targets other than archive and auto-updatable targets, omits native module building
+
 # app-builder-lib
 
 ## 22.14.7

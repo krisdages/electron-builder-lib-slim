@@ -9,16 +9,6 @@ import { Packager } from "./packager"
 export const NODE_MODULES_PATTERN = `${path.sep}node_modules${path.sep}`
 
 /** @internal */
-export function isElectronCompileUsed(info: Packager): boolean {
-  if (info.config.electronCompile != null) {
-    return info.config.electronCompile
-  }
-
-  // if in devDependencies - it means that babel is used for precompilation or for some reason user decided to not use electron-compile for production
-  return hasDep("electron-compile", info)
-}
-
-/** @internal */
 export function hasDep(name: string, info: Packager) {
   const deps = info.metadata.dependencies
   return deps != null && name in deps

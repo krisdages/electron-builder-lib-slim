@@ -1,5 +1,5 @@
 import BluebirdPromise from "bluebird-lst"
-import { Arch, asArray, AsyncTaskManager, debug, DebugLogger, deepAssign, getArchSuffix, InvalidConfigurationError, isEmptyOrSpaces, log, isEnvTrue } from "builder-util"
+import { Arch, asArray, AsyncTaskManager, debug, DebugLogger, deepAssign, getArchSuffix, InvalidConfigurationError, isEmptyOrSpaces, log } from "builder-util"
 import { defaultArchFromString, getArtifactArchName } from "builder-util/out/arch"
 import { copyOrLinkFile, FileTransformer, statOrNull } from "builder-util/out/fs"
 import { orIfFileNotExist } from "builder-util/out/promise"
@@ -12,7 +12,7 @@ import { checkFileInArchive } from "./asar/asarFileChecker"
 import { AsarPackager } from "./asar/asarUtil"
 import { computeData } from "./asar/integrity"
 import { copyFiles, FileMatcher, getFileMatchers, GetFileMatchersOptions, getMainFileMatchers, getNodeModuleFileMatcher } from "./fileMatcher"
-import { createTransformer, isElectronCompileUsed } from "./fileTransformer"
+import { createTransformer } from "./fileTransformer"
 import { Framework, isElectronBased } from "./Framework"
 import {
   AfterPackContext,
@@ -29,7 +29,7 @@ import {
   TargetSpecificOptions,
 } from "./index"
 import { executeAppBuilderAsJson } from "./util/appBuilder"
-import { computeFileSets, computeNodeModuleFileSets, copyAppFiles, ELECTRON_COMPILE_SHIM_FILENAME, transformFiles } from "./util/appFileCopier"
+import { computeFileSets, computeNodeModuleFileSets, copyAppFiles, transformFiles } from "./util/appFileCopier"
 import { expandMacro as doExpandMacro } from "./util/macroExpander"
 
 export abstract class PlatformPackager<DC extends PlatformSpecificBuildOptions> {
@@ -213,8 +213,6 @@ export abstract class PlatformPackager<DC extends PlatformSpecificBuildOptions> 
       })
     }
 
-    await this.info.installAppDependencies(this.platform, arch)
-
     if (this.info.cancellationToken.cancelled) {
       return
     }
@@ -348,9 +346,8 @@ export abstract class PlatformPackager<DC extends PlatformSpecificBuildOptions> 
   ) {
     const appDir = this.info.appDir
     const config = this.config
-    const isElectronCompile = asarOptions != null && isElectronCompileUsed(this.info)
 
-    const mainMatchers = getMainFileMatchers(appDir, defaultDestination, macroExpander, platformSpecificBuildOptions, this, packContext.outDir, isElectronCompile)
+    const mainMatchers = getMainFileMatchers(appDir, defaultDestination, macroExpander, platformSpecificBuildOptions, this, packContext.outDir)
     if (excludePatterns.length > 0) {
       for (const matcher of mainMatchers) {
         matcher.excludePatterns = excludePatterns
@@ -361,18 +358,12 @@ export abstract class PlatformPackager<DC extends PlatformSpecificBuildOptions> 
     const transformer = createTransformer(
       appDir,
       config,
-      isElectronCompile
-        ? {
-            originalMain: this.info.metadata.main,
-            main: ELECTRON_COMPILE_SHIM_FILENAME,
-            ...config.extraMetadata,
-          }
-        : config.extraMetadata,
+      config.extraMetadata,
       framework.createTransformer == null ? null : framework.createTransformer()
     )
 
     const _computeFileSets = (matchers: Array<FileMatcher>) => {
-      return computeFileSets(matchers, this.info.isPrepackedAppAsar ? null : transformer, this, isElectronCompile).then(async result => {
+      return computeFileSets(matchers, this.info.isPrepackedAppAsar ? null : transformer, this).then(async result => {
         if (!this.info.isPrepackedAppAsar && !this.info.areNodeModulesHandledExternally) {
           const moduleFileMatcher = getNodeModuleFileMatcher(appDir, defaultDestination, macroExpander, platformSpecificBuildOptions, this.info)
           result = result.concat(await computeNodeModuleFileSets(this, moduleFileMatcher))
@@ -786,11 +777,11 @@ function capitalizeFirstLetter(text: string) {
 }
 
 export function isSafeToUnpackElectronOnRemoteBuildServer(packager: PlatformPackager<any>) {
-  if (packager.platform !== Platform.LINUX || packager.config.remoteBuild === false) {
+  if (packager.platform !== Platform.LINUX) {
     return false
   }
 
-  if (process.platform === "win32" || isEnvTrue(process.env._REMOTE_BUILD)) {
+  if (process.platform === "win32") {
     return packager.config.electronDist == null && packager.config.electronDownload == null
   }
   return false

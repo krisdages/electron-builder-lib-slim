@@ -1,5 +1,4 @@
 import * as semver from "semver"
-import { fromUrl } from "hosted-git-info"
 import * as url from "url"
 
 export function normalizePackageData(data: any) {
@@ -18,12 +17,6 @@ const check = [
       data.repository = {
         type: "git",
         url: data.repository,
-      }
-    }
-    if (data.repository != null && data.repository.url) {
-      const hosted = fromUrl(data.repository.url)
-      if (hosted) {
-        data.repository.url = hosted.getDefaultRepresentation() == "shortcut" ? hosted.https() : hosted.toString()
       }
     }
   },
@@ -78,20 +71,11 @@ const check = [
         if (typeof r !== "string") {
           delete data[deps][d]
         }
-        const hosted = fromUrl(data[deps][d])
-        if (hosted) {
-          data[deps][d] = hosted.toString()
-        }
       })
     }
   },
   function fixBugsField(data: any) {
-    if (!data.bugs && data.repository && data.repository.url) {
-      const hosted = fromUrl(data.repository.url)
-      if (hosted && hosted.bugs()) {
-        data.bugs = { url: hosted.bugs() }
-      }
-    } else if (data.bugs) {
+    if (data.bugs) {
       const emailRe = /^.+@.*\..+$/
       if (typeof data.bugs == "string") {
         if (emailRe.test(data.bugs)) {
@@ -164,12 +148,6 @@ const check = [
     ensureValidName(data.name)
   },
   function fixHomepageField(data: any) {
-    if (!data.homepage && data.repository && data.repository.url) {
-      const hosted = fromUrl(data.repository.url)
-      if (hosted && hosted.docs()) {
-        data.homepage = hosted.docs()
-      }
-    }
     if (!data.homepage) {
       return
     }

@@ -1,24 +1,23 @@
 import BluebirdPromise from "bluebird-lst"
-import { deepAssign, Arch, AsyncTaskManager, exec, InvalidConfigurationError, log, use, getArchSuffix } from "builder-util"
-import { signAsync, SignOptions } from "electron-osx-sign"
-import { mkdir, readdir } from "fs/promises"
-import { Lazy } from "lazy-val"
-import * as path from "path"
+import { Arch, AsyncTaskManager, InvalidConfigurationError, log, use } from "builder-util"
 import { copyFile, statOrNull, unlinkIfExists } from "builder-util/out/fs"
 import { orIfFileNotExist } from "builder-util/out/promise"
+import { signAsync, SignOptions } from "electron-osx-sign"
+import * as fs from "fs/promises"
+import { readdir } from "fs/promises"
+import { Lazy } from "lazy-val"
+import * as path from "path"
 import { AppInfo } from "./appInfo"
-import { CertType, CodeSigningInfo, createKeychain, findIdentity, Identity, isSignAllowed, removeKeychain, reportError } from "./codeSign/macCodeSign"
+import { CertType, CodeSigningInfo, createKeychain, findIdentity, isSignAllowed, removeKeychain, reportError } from "./codeSign/macCodeSign"
 import { DIR_TARGET, Platform, Target } from "./core"
 import { AfterPackContext, ElectronPlatformName } from "./index"
-import { MacConfiguration, MasConfiguration } from "./options/macOptions"
+import { MacConfiguration } from "./options/macOptions"
 import { Packager } from "./packager"
 import { chooseNotNull, PlatformPackager } from "./platformPackager"
 import { ArchiveTarget } from "./targets/ArchiveTarget"
-import { PkgTarget, prepareProductBuildArgs } from "./targets/pkg"
-import { createCommonTarget, NoOpTarget } from "./targets/targetFactory"
+import { createCommonTarget } from "./targets/targetFactory"
 import { isMacOsHighSierra } from "./util/macosVersion"
 import { getTemplatePath } from "./util/pathManager"
-import * as fs from "fs/promises"
 
 export default class MacPackager extends PlatformPackager<MacConfiguration> {
   readonly codeSigningInfo = new Lazy<CodeSigningInfo>(() => {
@@ -83,12 +82,8 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
           // mapper(name, outDir => new ArchiveTarget(name, outDir, this, true))
           break
 
-        case "pkg":
-          mapper(name, outDir => new PkgTarget(this, outDir))
-          break
-
         default:
-          mapper(name, outDir => (name === "mas" || name === "mas-dev" ? new NoOpTarget(name) : createCommonTarget(name, outDir, this)))
+          mapper(name, outDir => createCommonTarget(name, outDir, this))
           break
       }
     }
@@ -140,57 +135,24 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
   }
 
   async pack(outDir: string, arch: Arch, targets: Array<Target>, taskManager: AsyncTaskManager): Promise<any> {
-    let nonMasPromise: Promise<any> | null = null
-
-    const hasMas = targets.length !== 0 && targets.some(it => it.name === "mas" || it.name === "mas-dev")
     const prepackaged = this.packagerOptions.prepackaged
 
-    if (!hasMas || targets.length > 1) {
-      const appPath = prepackaged == null ? path.join(this.computeAppOutDir(outDir, arch), `${this.appInfo.productFilename}.app`) : prepackaged
-      nonMasPromise = (
-        prepackaged
-          ? Promise.resolve()
-          : this.doPack(outDir, path.dirname(appPath), this.platform.nodeName as ElectronPlatformName, arch, this.platformSpecificBuildOptions, targets)
-      ).then(() => this.packageInDistributableFormat(appPath, arch, targets, taskManager))
-    }
-
-    for (const target of targets) {
-      const targetName = target.name
-      if (!(targetName === "mas" || targetName === "mas-dev")) {
-        continue
-      }
-
-      const masBuildOptions = deepAssign({}, this.platformSpecificBuildOptions, this.config.mas)
-      if (targetName === "mas-dev") {
-        deepAssign(masBuildOptions, this.config.masDev, {
-          type: "development",
-        })
-      }
-
-      const targetOutDir = path.join(outDir, `${targetName}${getArchSuffix(arch)}`)
-      if (prepackaged == null) {
-        await this.doPack(outDir, targetOutDir, "mas", arch, masBuildOptions, [target])
-        await this.sign(path.join(targetOutDir, `${this.appInfo.productFilename}.app`), targetOutDir, masBuildOptions, arch)
-      } else {
-        await this.sign(prepackaged, targetOutDir, masBuildOptions, arch)
-      }
-    }
-
-    if (nonMasPromise != null) {
-      await nonMasPromise
-    }
+    const appPath = prepackaged == null ? path.join(this.computeAppOutDir(outDir, arch), `${this.appInfo.productFilename}.app`) : prepackaged
+    await (prepackaged
+      ? Promise.resolve()
+      : this.doPack(outDir, path.dirname(appPath), this.platform.nodeName as ElectronPlatformName, arch, this.platformSpecificBuildOptions, targets)
+    ).then(() => this.packageInDistributableFormat(appPath, arch, targets, taskManager))
   }
 
-  private async sign(appPath: string, outDir: string | null, masOptions: MasConfiguration | null, arch: Arch | null): Promise<void> {
+  private async sign(appPath: string, outDir: string | null, arch: Arch | null): Promise<void> {
     if (!isSignAllowed()) {
       return
     }
 
-    const isMas = masOptions != null
-    const options = masOptions == null ? this.platformSpecificBuildOptions : masOptions
+    const options = this.platformSpecificBuildOptions
     const qualifier = options.identity
 
-    if (!isMas && qualifier === null) {
+    if (qualifier === null) {
       if (this.forceCodeSigning) {
         throw new InvalidConfigurationError("identity explicitly is set to null, but forceCodeSigning is set to true")
       }
@@ -202,7 +164,7 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
     const explicitType = options.type
     const type = explicitType || "distribution"
     const isDevelopment = type === "development"
-    const certificateTypes = getCertificateTypes(isMas, isDevelopment)
+    const certificateTypes = getCertificateTypes()
 
     let identity = null
     for (const certificateType of certificateTypes) {
@@ -213,7 +175,7 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
     }
 
     if (identity == null) {
-      if (!isMas && !isDevelopment && explicitType !== "distribution") {
+      if (!isDevelopment && explicitType !== "distribution") {
         identity = await findIdentity("Mac Developer", qualifier, keychainFile)
         if (identity != null) {
           log.warn("Mac Developer is used to sign app — it is only for development and testing, not for production")
@@ -221,7 +183,7 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
       }
 
       if (identity == null) {
-        await reportError(isMas, certificateTypes, qualifier, keychainFile, this.forceCodeSigning)
+        await reportError(certificateTypes, qualifier, keychainFile, this.forceCodeSigning)
         return
       }
     }
@@ -284,22 +246,22 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
       },
       identity: identity,
       type,
-      platform: isMas ? "mas" : "darwin",
+      platform: "darwin",
       version: this.config.electronVersion,
       app: appPath,
       keychain: keychainFile || undefined,
       binaries,
-      timestamp: isMas ? masOptions?.timestamp : options.timestamp,
-      requirements: isMas || this.platformSpecificBuildOptions.requirements == null ? undefined : await this.getResource(this.platformSpecificBuildOptions.requirements),
+      timestamp: options.timestamp,
+      requirements: this.platformSpecificBuildOptions.requirements == null ? undefined : await this.getResource(this.platformSpecificBuildOptions.requirements),
       // https://github.com/electron-userland/electron-osx-sign/issues/196
       // will fail on 10.14.5+ because a signed but unnotarized app is also rejected.
       "gatekeeper-assess": options.gatekeeperAssess === true,
       // https://github.com/electron-userland/electron-builder/issues/1480
       "strict-verify": options.strictVerify,
-      hardenedRuntime: isMas ? masOptions && masOptions.hardenedRuntime === true : options.hardenedRuntime !== false,
+      hardenedRuntime: options.hardenedRuntime !== false,
     }
 
-    await this.adjustSignOptions(signOptions, masOptions)
+    await this.adjustSignOptions(signOptions)
     log.info(
       {
         file: log.filePath(appPath),
@@ -310,27 +272,12 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
       "signing"
     )
     await this.doSign(signOptions)
-
-    // https://github.com/electron-userland/electron-builder/issues/1196#issuecomment-312310209
-    if (masOptions != null && !isDevelopment) {
-      const certType = isDevelopment ? "Mac Developer" : "3rd Party Mac Developer Installer"
-      const masInstallerIdentity = await findIdentity(certType, masOptions.identity, keychainFile)
-      if (masInstallerIdentity == null) {
-        throw new InvalidConfigurationError(`Cannot find valid "${certType}" identity to sign MAS installer, please see https://electron.build/code-signing`)
-      }
-
-      // mas uploaded to AppStore, so, use "-" instead of space for name
-      const artifactName = this.expandArtifactNamePattern(masOptions, "pkg", arch)
-      const artifactPath = path.join(outDir!, artifactName)
-      await this.doFlat(appPath, artifactPath, masInstallerIdentity, keychainFile)
-      await this.dispatchArtifactCreated(artifactPath, null, Arch.x64, this.computeSafeArtifactName(artifactName, "pkg", arch, true, this.platformSpecificBuildOptions.defaultArch))
-    }
   }
 
-  private async adjustSignOptions(signOptions: any, masOptions: MasConfiguration | null) {
+  private async adjustSignOptions(signOptions: any) {
     const resourceList = await this.resourceList
-    const customSignOptions = masOptions || this.platformSpecificBuildOptions
-    const entitlementsSuffix = masOptions == null ? "mac" : "mas"
+    const customSignOptions = this.platformSpecificBuildOptions
+    const entitlementsSuffix = "mac"
 
     let entitlements = customSignOptions.entitlements
     if (entitlements == null) {
@@ -363,17 +310,6 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
   //noinspection JSMethodCanBeStatic
   protected async doSign(opts: SignOptions): Promise<any> {
     return signAsync(opts)
-  }
-
-  //noinspection JSMethodCanBeStatic
-  protected async doFlat(appPath: string, outFile: string, identity: Identity, keychain: string | null | undefined): Promise<any> {
-    // productbuild doesn't created directory for out file
-    await mkdir(path.dirname(outFile), { recursive: true })
-
-    const args = prepareProductBuildArgs(identity, keychain)
-    args.push("--component", appPath, "/Applications")
-    args.push(outFile)
-    return await exec("productbuild", args)
   }
 
   public getElectronSrcDir(dist: string) {
@@ -434,7 +370,7 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
 
     await BluebirdPromise.map(readdir(packContext.appOutDir), (file: string): any => {
       if (file === appFileName) {
-        return this.sign(path.join(packContext.appOutDir, file), null, null, null)
+        return this.sign(path.join(packContext.appOutDir, file), null, null)
       }
       return null
     })
@@ -446,7 +382,7 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
     const outResourcesDir = path.join(packContext.appOutDir, "resources", "app.asar.unpacked")
     await BluebirdPromise.map(orIfFileNotExist(readdir(outResourcesDir), []), (file: string): any => {
       if (file.endsWith(".app")) {
-        return this.sign(path.join(outResourcesDir, file), null, null, null)
+        return this.sign(path.join(outResourcesDir, file), null, null)
       } else {
         return null
       }
@@ -454,9 +390,6 @@ export default class MacPackager extends PlatformPackager<MacConfiguration> {
   }
 }
 
-function getCertificateTypes(isMas: boolean, isDevelopment: boolean): CertType[] {
-  if (isDevelopment) {
-    return isMas ? ["Mac Developer", "Apple Development"] : ["Developer ID Application"]
-  }
-  return isMas ? ["Apple Distribution"] : ["Developer ID Application"]
+function getCertificateTypes(): CertType[] {
+  return ["Developer ID Application"];
 }

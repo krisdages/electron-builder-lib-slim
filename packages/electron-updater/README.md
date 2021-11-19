@@ -1,3 +1,5 @@
+Unsupported Fork
+
 # electron-updater
 
 This module allows you to automatically update your application. You only need to install this module and write two lines of code!

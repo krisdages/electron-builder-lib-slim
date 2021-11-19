@@ -1,5 +1,4 @@
-import { BitbucketPublisher } from "app-builder-lib/out/publish/BitbucketPublisher"
-import { BitbucketOptions, GenericServerOptions, GithubOptions, KeygenOptions, S3Options, SpacesOptions } from "builder-util-runtime"
+import { GenericServerOptions } from "builder-util-runtime"
 import { UpdateCheckResult } from "electron-updater"
 import { outputFile } from "fs-extra"
 import { tmpdir } from "os"
@@ -14,13 +13,13 @@ if (process.env.ELECTRON_BUILDER_OFFLINE === "true") {
   })
 }
 
-test("downgrade (disallowed, beta)", async () => {
+test.skip("downgrade (disallowed, beta)", async () => {
   const updater = await createNsisUpdater("1.5.2-beta.4")
-  updater.updateConfigPath = await writeUpdateConfig<GithubOptions>({
-    provider: "github",
-    owner: "develar",
-    repo: "__test_nsis_release",
-  })
+  // updater.updateConfigPath = await writeUpdateConfig<GithubOptions>({
+  //   provider: "github",
+  //   owner: "develar",
+  //   repo: "__test_nsis_release",
+  // })
 
   const actualEvents: Array<string> = []
   const expectedEvents = ["checking-for-update", "update-not-available"]
@@ -43,40 +42,6 @@ test("file url generic", async () => {
   updater.updateConfigPath = await writeUpdateConfig<GenericServerOptions>({
     provider: "generic",
     url: "https://develar.s3.amazonaws.com/test",
-  })
-  await validateDownload(updater)
-})
-
-test.ifEnv(process.env.KEYGEN_TOKEN)("file url keygen", async () => {
-  const updater = await createNsisUpdater()
-  updater.addAuthHeader(`Bearer ${process.env.KEYGEN_TOKEN}`)
-  updater.updateConfigPath = await writeUpdateConfig<KeygenOptions>({
-    provider: "keygen",
-    product: "43981278-96e7-47de-b8c2-98d59987206b",
-    account: "cdecda36-3ef0-483e-ad88-97e7970f3149",
-  })
-  await validateDownload(updater)
-})
-
-test.ifEnv(process.env.BITBUCKET_TOKEN)("file url bitbucket", async () => {
-  const updater = await createNsisUpdater()
-  const options: BitbucketOptions = {
-    provider: "bitbucket",
-    owner: "mike-m",
-    slug: "electron-builder-test",
-  }
-  updater.addAuthHeader(BitbucketPublisher.convertAppPassword(options.owner, process.env.BITBUCKET_TOKEN!))
-  updater.updateConfigPath = await writeUpdateConfig(options)
-  await validateDownload(updater)
-})
-
-test.skip("DigitalOcean Spaces", async () => {
-  const updater = await createNsisUpdater()
-  updater.updateConfigPath = await writeUpdateConfig<SpacesOptions>({
-    provider: "spaces",
-    name: "electron-builder-test",
-    path: "light-updater-test",
-    region: "nyc3",
   })
   await validateDownload(updater)
 })
@@ -149,51 +114,6 @@ async function checkDownloadPromise(updateCheckResult: UpdateCheckResult) {
   return await assertThat(path.join((await updateCheckResult.downloadPromise)!![0])).isFile()
 }
 
-test("file url github", async () => {
-  const updater = await createNsisUpdater()
-  const options: GithubOptions = {
-    provider: "github",
-    owner: "develar",
-    repo: "__test_nsis_release",
-  }
-  updater.updateConfigPath = await writeUpdateConfig(options)
-  updater.signals.updateDownloaded(info => {
-    expect(info.downloadedFile).not.toBeNull()
-    delete (info as any).downloadedFile
-    expect(info).toMatchSnapshot()
-  })
-  await validateDownload(updater)
-})
-
-test("file url github pre-release and fullChangelog", async () => {
-  const updater = await createNsisUpdater("1.5.0-beta.1")
-  const options: GithubOptions = {
-    provider: "github",
-    owner: "develar",
-    repo: "__test_nsis_release",
-  }
-  updater.fullChangelog = true
-  updater.updateConfigPath = await writeUpdateConfig(options)
-  updater.signals.updateDownloaded(info => {
-    expect(info.downloadedFile).not.toBeNull()
-    delete (info as any).downloadedFile
-    expect(info).toMatchSnapshot()
-  })
-  const updateCheckResult = await validateDownload(updater)
-  expect(updateCheckResult.updateInfo).toMatchSnapshot()
-})
-
-test.skip("file url github private", async () => {
-  const updater = await createNsisUpdater("0.0.1")
-  updater.updateConfigPath = await writeUpdateConfig<GithubOptions>({
-    provider: "github",
-    owner: "develar",
-    repo: "__test_nsis_release_private",
-    private: true,
-  })
-  await validateDownload(updater)
-})
-
 test("test error", async () => {
   const updater = await createNsisUpdater("0.0.1")
   const actualEvents = trackEvents(updater)
@@ -226,25 +146,25 @@ test.skip("test download progress", async () => {
   expect(lastEvent.transferred).toBe(lastEvent.total)
 })
 
-test.ifAll.ifWindows("valid signature", async () => {
+test.ifAll.ifWindows.skip("valid signature", async () => {
   const updater = await createNsisUpdater("0.0.1")
-  updater.updateConfigPath = await writeUpdateConfig({
-    provider: "github",
-    owner: "develar",
-    repo: "__test_nsis_release",
-    publisherName: ["Vladimir Krivosheev"],
-  })
+  // updater.updateConfigPath = await writeUpdateConfig({
+  //   provider: "github",
+  //   owner: "develar",
+  //   repo: "__test_nsis_release",
+  //   publisherName: ["Vladimir Krivosheev"],
+  // })
   await validateDownload(updater)
 })
 
-test.ifAll.ifWindows("invalid signature", async () => {
+test.ifAll.ifWindows.skip("invalid signature", async () => {
   const updater = await createNsisUpdater("0.0.1")
-  updater.updateConfigPath = await writeUpdateConfig({
-    provider: "github",
-    owner: "develar",
-    repo: "__test_nsis_release",
-    publisherName: ["Foo Bar"],
-  })
+  // updater.updateConfigPath = await writeUpdateConfig({
+  //   provider: "github",
+  //   owner: "develar",
+  //   repo: "__test_nsis_release",
+  //   publisherName: ["Foo Bar"],
+  // })
   const actualEvents = trackEvents(updater)
   await assertThat(updater.checkForUpdates().then((it): any => it.downloadPromise)).throws()
   expect(actualEvents).toMatchSnapshot()
@@ -256,11 +176,10 @@ test.skip("90 staging percentage", async () => {
   await outputFile(userIdFile, "1wa70172-80f8-5cc4-8131-28f5e0edd2a1")
 
   const updater = await createNsisUpdater("0.0.1")
-  updater.updateConfigPath = await writeUpdateConfig<S3Options>({
-    provider: "s3",
+  updater.updateConfigPath = await writeUpdateConfig({
+    provider: "generic",
+    url: "https://develar.s3.amazonaws.com/test",
     channel: "staging-percentage",
-    bucket: "develar",
-    path: "test",
   })
   await validateDownload(updater)
 })
@@ -271,10 +190,9 @@ test("1 staging percentage", async () => {
 
   const updater = await createNsisUpdater("0.0.1")
   updater.updateConfigPath = await writeUpdateConfig({
-    provider: "s3",
+    provider: "generic",
+    url: "http://develar.s3.amazonaws.com/test",
     channel: "staging-percentage-small",
-    bucket: "develar",
-    path: "test",
   })
   await validateDownload(updater, false)
 })

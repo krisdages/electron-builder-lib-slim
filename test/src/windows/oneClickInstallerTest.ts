@@ -1,4 +1,4 @@
-import { Arch, Platform } from "electron-builder"
+import { Arch, Platform } from "app-builder-lib"
 import { copyFile, writeFile } from "fs-extra"
 import * as path from "path"
 import { assertThat } from "../helpers/fileAssert"
@@ -25,7 +25,7 @@ function pickSnapshotDefines(defines: any) {
   }
 }
 
-test(
+test.skip(
   "one-click",
   app(
     {
@@ -34,11 +34,11 @@ test(
         win: {
           publisherName: "Foo, Inc",
         },
-        publish: {
-          provider: "bintray",
-          owner: "actperepo",
-          package: "TestApp",
-        },
+        // publish: {
+        //   provider: "bintray",
+        //   owner: "actperepo",
+        //   package: "TestApp",
+        // },
         nsis: {
           deleteAppDataOnUninstall: true,
           packElevateHelper: false,

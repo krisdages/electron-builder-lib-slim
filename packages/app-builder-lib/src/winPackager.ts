@@ -23,7 +23,6 @@ import { DIR_TARGET, Platform, Target } from "./core"
 import { RequestedExecutionLevel, WindowsConfiguration } from "./options/winOptions"
 import { Packager } from "./packager"
 import { chooseNotNull, PlatformPackager } from "./platformPackager"
-import AppXTarget from "./targets/AppxTarget"
 import { NsisTarget } from "./targets/nsis/NsisTarget"
 import { AppPackageHelper, CopyElevateHelper } from "./targets/nsis/nsisUtil"
 import { WebInstallerTarget } from "./targets/nsis/WebInstallerTarget"
@@ -165,18 +164,8 @@ export class WinPackager extends PlatformPackager<WindowsConfiguration> {
         // package file format differs from nsis target
         mapper(name, outDir => new WebInstallerTarget(this, path.join(outDir, name), name, new AppPackageHelper(getCopyElevateHelper())))
       } else {
-        const targetClass: typeof NsisTarget | typeof AppXTarget | null = (() => {
+        const targetClass: typeof NsisTarget | null = (() => {
           switch (name) {
-            case "squirrel":
-              try {
-                return require("electron-builder-squirrel-windows").default
-              } catch (e) {
-                throw new InvalidConfigurationError(`Module electron-builder-squirrel-windows must be installed in addition to build Squirrel.Windows: ${e.stack || e}`)
-              }
-
-            case "appx":
-              return require("./targets/AppxTarget").default
-
             case "msi":
               return require("./targets/MsiTarget").default
 

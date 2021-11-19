@@ -17,12 +17,6 @@
     },
     "linux": {
       "category": "Development"
-    },
-    "deb": {
-      "packageCategory": "devel"
-    },
-    "squirrelWindows": {
-      "iconUrl": "https://raw.githubusercontent.com/szwacz/electron-boilerplate/master/resources/windows/icon.ico"
     }
   }
 }

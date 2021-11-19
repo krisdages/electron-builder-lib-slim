@@ -1,12 +1,12 @@
 {
-  "name": "builder-util-runtime",
-  "version": "8.9.2",
+  "name": "@krisdages/builder-util-runtime",
+  "version": "8.9.2-slim.0",
   "main": "out/index.js",
   "author": "Vladimir Krivosheev",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/electron-userland/electron-builder.git",
+    "url": "git+https://github.com/krisdages/electron-builder-lib-slim.git",
     "directory": "packages/builder-util-runtime"
   },
   "bugs": "https://github.com/electron-userland/electron-builder/issues",

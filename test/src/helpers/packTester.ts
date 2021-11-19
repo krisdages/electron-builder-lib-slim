@@ -4,12 +4,10 @@ import { CancellationToken } from "builder-util-runtime"
 import { copyDir, FileCopier, USE_HARD_LINKS, walk } from "builder-util/out/fs"
 import { executeFinally } from "builder-util/out/promise"
 import DecompressZip from "decompress-zip"
-import { Arch, ArtifactCreated, Configuration, DIR_TARGET, getArchSuffix, MacOsTargetName, Packager, PackagerOptions, Platform, Target } from "electron-builder"
+import { Arch, ArtifactCreated, Configuration, DIR_TARGET, getArchSuffix, MacOsTargetName, Packager, PackagerOptions, Platform, Target } from "app-builder-lib"
 import { PublishManager } from "app-builder-lib"
 import { computeArchToTargetNamesMap } from "app-builder-lib/out/targets/targetFactory"
 import { getLinuxToolsPath } from "app-builder-lib/out/targets/tools"
-import { convertVersion } from "electron-builder-squirrel-windows/out/squirrelPack"
-import { PublishPolicy } from "electron-publish"
 import { emptyDir, writeJson } from "fs-extra"
 import * as fs from "fs/promises"
 import { load } from "js-yaml"
@@ -27,7 +25,6 @@ if (process.env.TRAVIS !== "true") {
 }
 
 export const linuxDirTarget = Platform.LINUX.createTarget(DIR_TARGET)
-export const snapTarget = Platform.LINUX.createTarget("snap")
 
 export interface AssertPackOptions {
   readonly projectDirCreated?: (projectDir: string, tmpDir: TmpDir) => Promise<any>
@@ -41,8 +38,6 @@ export interface AssertPackOptions {
   readonly signedWin?: boolean
 
   readonly isInstallDepsBefore?: boolean
-
-  readonly publish?: PublishPolicy
 
   readonly tmpDir?: TmpDir
 }
@@ -171,7 +166,7 @@ export function getFixtureDir() {
 async function packAndCheck(packagerOptions: PackagerOptions, checkOptions: AssertPackOptions) {
   const cancellationToken = new CancellationToken()
   const packager = new Packager(packagerOptions, cancellationToken)
-  const publishManager = new PublishManager(packager, { publish: "publish" in checkOptions ? checkOptions.publish : "never" })
+  const publishManager = new PublishManager(packager)
 
   const artifacts: Map<Platform, Array<ArtifactCreated>> = new Map()
   packager.artifactCreated(event => {
@@ -371,19 +366,19 @@ async function checkMacResult(packager: Packager, packagerOptions: PackagerOptio
 }
 
 async function checkWindowsResult(packager: Packager, checkOptions: AssertPackOptions, artifacts: Array<ArtifactCreated>, nameToTarget: Map<string, Target>) {
-  const appInfo = packager.appInfo
-  let squirrel = false
+  // const appInfo = packager.appInfo
+  let zip = false
   for (const target of nameToTarget.keys()) {
-    if (target === "squirrel") {
-      squirrel = true
+    if (target === "zip") {
+      zip = true
       break
     }
   }
-  if (!squirrel) {
+  if (!zip) {
     return
   }
 
-  const packageFile = artifacts.find(it => it.file!!.endsWith("-full.nupkg"))!.file!!
+  const packageFile = artifacts.find(it => it.file!!.endsWith(".zip"))!.file!!
   const unZipper = new DecompressZip(packageFile!!)
   const fileDescriptors = await unZipper.getFiles()
 
@@ -398,29 +393,6 @@ async function checkWindowsResult(packager: Packager, checkOptions: AssertPackOp
   )
 
   expect(files).toMatchSnapshot()
-
-  if (checkOptions == null) {
-    await unZipper.extractFile(fileDescriptors.filter(it => it.path === "TestApp.nuspec")[0], {
-      path: path.dirname(packageFile),
-    })
-    const expectedSpec = (await fs.readFile(path.join(path.dirname(packageFile), "TestApp.nuspec"), "utf8")).replace(/\r\n/g, "\n")
-    // console.log(expectedSpec)
-    expect(expectedSpec).toEqual(`<?xml version="1.0"?>
-<package xmlns="http://schemas.microsoft.com/packaging/2011/08/nuspec.xsd">
-  <metadata>
-    <id>TestApp</id>
-    <version>${convertVersion(appInfo.version)}</version>
-    <title>${appInfo.productName}</title>
-    <authors>Foo Bar</authors>
-    <owners>Foo Bar</owners>
-    <iconUrl>https://raw.githubusercontent.com/szwacz/electron-boilerplate/master/resources/windows/icon.ico</iconUrl>
-    <requireLicenseAcceptance>false</requireLicenseAcceptance>
-    <description>Test Application (test quite “ #378)</description>
-    <copyright>Copyright © ${new Date().getFullYear()} Foo Bar</copyright>
-    <projectUrl>http://foo.example.com</projectUrl>
-  </metadata>
-</package>`)
-  }
 }
 
 export const execShell: any = promisify(require("child_process").exec)

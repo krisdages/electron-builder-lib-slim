@@ -1,4 +1,4 @@
-import { Arch, build, Platform } from "electron-builder"
+import { Arch, build, Platform } from "app-builder-lib"
 import { outputFile } from "fs-extra"
 import * as path from "path"
 import { GenericServerOptions } from "builder-util-runtime"
@@ -269,7 +269,6 @@ test.ifNotWindows(
         await build({
           targets: appImageTarget,
           projectDir,
-          publish: "never",
           config: {
             electronVersion: ELECTRON_VERSION,
             compression: "store",

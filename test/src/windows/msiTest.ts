@@ -1,5 +1,5 @@
 import { app } from "../helpers/packTester"
-import { Platform } from "electron-builder"
+import { Platform } from "app-builder-lib"
 import * as fs from "fs"
 
 test.ifAll.ifDevOrWinCi(

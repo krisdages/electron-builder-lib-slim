@@ -1,6 +1,5 @@
-import { DIR_TARGET, Platform } from "electron-builder"
+import { DIR_TARGET, Platform } from "app-builder-lib"
 import { readAsarJson } from "app-builder-lib/out/asar/asar"
-import { coerceTypes } from "electron-builder/out/builder"
 import { readJson } from "fs-extra"
 import * as path from "path"
 import { assertThat } from "./helpers/fileAssert"
@@ -76,3 +75,26 @@ test("cli", async () => {
   expect(parseExtraMetadata("--c.extraMetadata.foo=bar")).toMatchSnapshot()
   expect(parseExtraMetadata("--c.extraMetadata.dev.login-url")).toMatchSnapshot()
 })
+
+function coerceValue(host: any, key: string): void {
+  const value = host[key]
+  if (value === "true") {
+    host[key] = true
+  } else if (value === "false") {
+    host[key] = false
+  } else if (value === "null") {
+    host[key] = null
+  } else if (key === "version" && typeof value === "number") {
+    host[key] = value.toString()
+  } else if (value != null && typeof value === "object") {
+    coerceTypes(value)
+  }
+}
+
+/** @private */
+export function coerceTypes(host: any): any {
+  for (const key of Object.getOwnPropertyNames(host)) {
+    coerceValue(host, key)
+  }
+  return host
+}
