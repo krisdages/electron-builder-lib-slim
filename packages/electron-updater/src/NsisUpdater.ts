@@ -1,9 +1,9 @@
 import { AllPublishOptions, newError, PackageFileInfo, BlockMap, CURRENT_APP_PACKAGE_FILE_NAME, CURRENT_APP_INSTALLER_FILE_NAME } from "builder-util-runtime"
 import { spawn } from "child_process"
 import * as path from "path"
-import { AppAdapter } from "./AppAdapter"
+import { AppAdapter, ExternalAppAdapter } from "./AppAdapter"
 import { DownloadUpdateOptions } from "./AppUpdater"
-import { BaseUpdater, InstallOptions } from "./BaseUpdater"
+import { BaseUpdater, InstallOptions, InstallResultTuple } from "./BaseUpdater"
 import { DifferentialDownloaderOptions } from "./differentialDownloader/DifferentialDownloader"
 import { FileWithEmbeddedBlockMapDifferentialDownloader } from "./differentialDownloader/FileWithEmbeddedBlockMapDifferentialDownloader"
 import { GenericDifferentialDownloader } from "./differentialDownloader/GenericDifferentialDownloader"
@@ -16,7 +16,7 @@ import { URL } from "url"
 import { gunzipSync } from "zlib"
 
 export class NsisUpdater extends BaseUpdater {
-  constructor(options?: AllPublishOptions | null, app?: AppAdapter) {
+  constructor(options?: AllPublishOptions | null, app?: AppAdapter | ExternalAppAdapter) {
     super(options, app)
   }
 
@@ -74,7 +74,7 @@ export class NsisUpdater extends BaseUpdater {
   private async verifySignature(tempUpdateFile: string): Promise<string | null> {
     let publisherName: Array<string> | string | null
     try {
-      publisherName = (await this.configOnDisk.value).publisherName
+      publisherName = (await this.configOnDisk.value)?.publisherName ?? null
       if (publisherName == null) {
         return null
       }
@@ -88,7 +88,7 @@ export class NsisUpdater extends BaseUpdater {
     return await verifySignature(Array.isArray(publisherName) ? publisherName : [publisherName], tempUpdateFile, this._logger)
   }
 
-  protected doInstall(options: InstallOptions): boolean {
+  protected doInstall(options: InstallOptions): InstallResultTuple {
     const args = ["--updated"]
     if (options.isSilent) {
       args.push("/S")
@@ -104,17 +104,14 @@ export class NsisUpdater extends BaseUpdater {
       args.push(`--package-file=${packagePath}`)
     }
 
-    const callUsingElevation = (): void => {
-      _spawn(path.join(process.resourcesPath!, "elevate.exe"), [options.installerPath].concat(args)).catch(e => this.dispatchError(e))
-    }
+    const callUsingElevation = () => _spawn(path.join(process.resourcesPath!, "elevate.exe"), [options.installerPath].concat(args)).catch(e => this.dispatchError(e))
 
     if (options.isAdminRightsRequired) {
       this._logger.info("isAdminRightsRequired is set to true, run installer using elevate.exe")
-      callUsingElevation()
-      return true
+      return [true, callUsingElevation()];
     }
 
-    _spawn(options.installerPath, args).catch((e: Error) => {
+    return [true, _spawn(options.installerPath, args).catch((e: Error) => {
       // https://github.com/electron-userland/electron-builder/issues/1129
       // Node 8 sends errors: https://nodejs.org/dist/latest-v8.x/docs/api/errors.html#errors_common_system_errors
       const errorCode = (e as NodeJS.ErrnoException).code
@@ -122,10 +119,9 @@ export class NsisUpdater extends BaseUpdater {
       if (errorCode === "UNKNOWN" || errorCode === "EACCES") {
         callUsingElevation()
       } else {
-        this.dispatchError(e)
+        throw e
       }
-    })
-    return true
+    })];
   }
 
   private async differentialDownloadInstaller(

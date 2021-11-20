@@ -12,7 +12,7 @@ export class GenericProvider extends Provider<UpdateInfo> {
   }
 
   private get channel(): string {
-    const result = this.updater.channel || this.configuration.channel
+    const result = this.updater.channel ?? this.configuration.channel
     return result == null ? this.getDefaultChannelName() : this.getCustomChannelName(result)
   }
 

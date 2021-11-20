@@ -239,7 +239,7 @@ async function checkResult(updater: NsisUpdater) {
   // noinspection JSIgnoredPromiseFromCall
   expect(downloadPromise).not.toBeNull()
   const files = await downloadPromise
-  const fileInfo: any = updateCheckResult.updateInfo.files[0]
+  const fileInfo: any = updateCheckResult.updateInfo?.files[0]
 
   // because port is random
   expect(fileInfo.url).toBeDefined()

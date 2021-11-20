@@ -4,6 +4,8 @@ import { AppAdapter, getAppCacheDir } from "./AppAdapter"
 export class ElectronAppAdapter implements AppAdapter {
   constructor(private readonly app = require("electron").app) {}
 
+  readonly isExternalApp = false;
+
   whenReady(): Promise<void> {
     return this.app.whenReady()
   }

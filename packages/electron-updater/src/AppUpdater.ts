@@ -1,5 +1,6 @@
 import { AllPublishOptions, asArray, CancellationError, CancellationToken, DownloadOptions, newError, PublishConfiguration, UpdateInfo, UUID } from "builder-util-runtime"
 import { randomBytes } from "crypto"
+import { Notification } from "electron"
 import { EventEmitter } from "events"
 import { outputFile } from "fs-extra"
 import { mkdir, readFile, rename, unlink } from "fs/promises"
@@ -8,7 +9,7 @@ import { load } from "js-yaml"
 import { Lazy } from "lazy-val"
 import * as path from "path"
 import { eq as isVersionsEqual, gt as isVersionGreaterThan, lt as isVersionLessThan, parse as parseVersion, SemVer } from "semver"
-import { AppAdapter } from "./AppAdapter"
+import { AppAdapter, ExternalAppAdapter } from "./AppAdapter"
 import { createTempUpdateFile, DownloadedUpdateHelper } from "./DownloadedUpdateHelper"
 import { ElectronAppAdapter } from "./ElectronAppAdapter"
 import { ElectronHttpExecutor, getNetSession } from "./electronHttpExecutor"
@@ -142,28 +143,28 @@ export abstract class AppUpdater extends EventEmitter {
     this.configOnDisk = new Lazy<any>(() => this.loadUpdateConfig())
   }
 
-  private clientPromise: Promise<Provider<any>> | null = null
+  private clientPromise: Promise<Provider | null> | null = null
 
-  protected readonly stagingUserIdPromise = new Lazy<string>(() => this.getOrCreateStagingUserId())
+  protected readonly stagingUserIdPromise = new Lazy<string | null>(() => this.getOrCreateStagingUserId())
 
   // public, allow to read old config for anyone
   /** @internal */
-  configOnDisk = new Lazy<any>(() => this.loadUpdateConfig())
+  configOnDisk = new Lazy<PublishConfiguration | null>(() => this.loadUpdateConfig())
 
   private checkForUpdatesPromise: Promise<UpdateCheckResult> | null = null
 
-  protected readonly app: AppAdapter
+  protected readonly app: AppAdapter | ExternalAppAdapter
 
   protected updateInfoAndProvider: UpdateInfoAndProvider | null = null
 
   /** @internal */
   readonly httpExecutor: ElectronHttpExecutor
 
-  protected constructor(options: AllPublishOptions | null | undefined, app?: AppAdapter) {
+  protected constructor(options: AllPublishOptions | null | undefined, app?: AppAdapter | ExternalAppAdapter) {
     super()
 
     this.on("error", (error: Error) => {
-      this._logger.error(`Error: ${error.stack || error.message}`)
+      this._logger.error(`Error: ${error.stack ?? error.message}`)
     })
 
     if (app == null) {
@@ -197,7 +198,7 @@ export abstract class AppUpdater extends EventEmitter {
   setFeedURL(options: PublishConfiguration | AllPublishOptions | string) {
     const runtimeOptions = this.createProviderRuntimeOptions()
     // https://github.com/electron-userland/electron-builder/issues/1105
-    let provider: Provider<any>
+    let provider: Provider
     if (typeof options === "string") {
       provider = new GenericProvider({ provider: "generic", url: options }, this, {
         ...runtimeOptions,
@@ -238,7 +239,7 @@ export abstract class AppUpdater extends EventEmitter {
   }
 
   public isUpdaterActive(): boolean {
-    if (!this.app.isPackaged) {
+    if (!this.app.isExternalApp && !this.app.isPackaged) {
       this._logger.info("Skip checkForUpdatesAndNotify because application is not packed")
       return false
     }
@@ -246,27 +247,34 @@ export abstract class AppUpdater extends EventEmitter {
   }
 
   // noinspection JSUnusedGlobalSymbols
-  checkForUpdatesAndNotify(downloadNotification?: DownloadNotification): Promise<UpdateCheckResult | null> {
+  async checkForUpdatesAndNotify(downloadNotification?: DownloadNotification, electronNotificationOut?: { notification?: Notification }): Promise<UpdateCheckResult | null> {
     if (!this.isUpdaterActive()) {
-      return Promise.resolve(null)
+      return null
     }
 
-    return this.checkForUpdates().then(it => {
-      const downloadPromise = it.downloadPromise
-      if (downloadPromise == null) {
-        if (this._logger.debug != null) {
-          this._logger.debug("checkForUpdatesAndNotify called, downloadPromise is null")
-        }
-        return it
-      }
+    const updateCheckResult = await this.checkForUpdates()
+    const { updateInfo, downloadPromise } = updateCheckResult
 
-      void downloadPromise.then(() => {
-        const notificationContent = AppUpdater.formatDownloadNotification(it.updateInfo.version, this.app.name, downloadNotification)
-        new (require("electron").Notification)(notificationContent).show()
-      })
+    if (updateInfo == null) {
+      this._logger.debug?.("checkForUpdatesAndNotify called, updateInfo is null")
+      return updateCheckResult;
+    }
 
-      return it
-    })
+    if (downloadPromise == null) {
+      this._logger.debug?.("checkForUpdatesAndNotify called, downloadPromise is null")
+      return updateCheckResult
+    }
+
+    await downloadPromise;
+    const notificationContent = AppUpdater.formatDownloadNotification(updateInfo.version, this.app.name, downloadNotification)
+    const notification = new (require("electron").Notification(notificationContent))
+
+    notification.show()
+
+    if (electronNotificationOut != null)
+      electronNotificationOut.notification = notification
+
+    return updateCheckResult
   }
 
   private static formatDownloadNotification(version: string, appName: string, downloadNotification?: DownloadNotification): DownloadNotification {
@@ -283,7 +291,7 @@ export abstract class AppUpdater extends EventEmitter {
     return downloadNotification
   }
 
-  private async isStagingMatch(updateInfo: UpdateInfo): Promise<boolean> {
+  private isStagingMatch(updateInfo: UpdateInfo, stagingUserId: string | null): boolean {
     const rawStagingPercentage = updateInfo.stagingPercentage
     let stagingPercentage = rawStagingPercentage
     if (stagingPercentage == null) {
@@ -296,10 +304,14 @@ export abstract class AppUpdater extends EventEmitter {
       return true
     }
 
+    if (stagingUserId == null) {
+      this._logger.warn(`Staging user ID is not supported, allowing the update`)
+      return true
+    }
+
     // convert from user 0-100 to internal 0-1
     stagingPercentage = stagingPercentage / 100
 
-    const stagingUserId = await this.stagingUserIdPromise.value
     const val = UUID.parse(stagingUserId).readUInt32BE(12)
     const percentage = val / 0xffffffff
     this._logger.info(`Staging percentage: ${stagingPercentage}, percentage: ${percentage}, user id: ${stagingUserId}`)
@@ -313,7 +325,9 @@ export abstract class AppUpdater extends EventEmitter {
     return headers
   }
 
-  private async isUpdateAvailable(updateInfo: UpdateInfo): Promise<boolean> {
+  private isUpdateAvailable(updateInfoAndProvider: UpdateInfoAndProvider): boolean {
+    const { info: updateInfo, stagingUserId } = updateInfoAndProvider;
+
     if (this.useSemver === false) return updateInfo.version !== this.currentVersionString
 
     const latestVersion = parseVersion(updateInfo.version, this.useSemver === "loose" ? { loose: true } : undefined)
@@ -332,7 +346,7 @@ export abstract class AppUpdater extends EventEmitter {
       return false
     }
 
-    const isStagingMatch = await this.isStagingMatch(updateInfo)
+    const isStagingMatch = this.isStagingMatch(updateInfo, stagingUserId)
     if (!isStagingMatch) {
       return false
     }
@@ -348,19 +362,25 @@ export abstract class AppUpdater extends EventEmitter {
     return this.allowDowngrade && isLatestVersionOlder
   }
 
-  protected async getUpdateInfoAndProvider(): Promise<UpdateInfoAndProvider> {
-    await this.app.whenReady()
+  async getProvider(): Promise<Provider | null> {
+    /* wait until the currently running electron app is ready to load the provider */
+    await (this.app.isExternalApp ? require("electron").app : this.app).whenReady()
 
     if (this.clientPromise == null) {
-      this.clientPromise = this.configOnDisk.value.then(it => createClient(it, this, this.createProviderRuntimeOptions()))
+      this.clientPromise = this.configOnDisk.value.then(it => it == null ? null : createClient(it, this, this.createProviderRuntimeOptions()))
     }
 
-    const client = await this.clientPromise
-    const stagingUserId = await this.stagingUserIdPromise.value
-    client.setRequestHeaders(this.computeFinalHeaders({ "x-user-staging-id": stagingUserId }))
+    return await this.clientPromise ?? null
+  }
+
+  protected async getUpdateInfoAndProvider(provider: Provider): Promise<UpdateInfoAndProvider> {
+    const stagingUserId = await this.stagingUserIdPromise.value;
+
+    provider.setRequestHeaders(this.computeFinalHeaders({ "x-user-staging-id": stagingUserId ?? "" }))
     return {
-      info: await client.getLatestVersion(),
-      provider: client,
+      info: await provider.getLatestVersion(),
+      provider,
+      stagingUserId
     }
   }
 
@@ -374,11 +394,19 @@ export abstract class AppUpdater extends EventEmitter {
   }
 
   private async doCheckForUpdates(): Promise<UpdateCheckResult> {
-    this.emit("checking-for-update")
+    const provider = await this.getProvider();
+    if (provider == null) {
+      this._logger.info(`Update for version ${this.currentVersionString} is not available (update provider is not configured).`)
+      return { updateInfo: null, versionInfo: null, isUpdaterUnconfigured: true };
+    }
 
-    const result = await this.getUpdateInfoAndProvider()
+    this.emit("checking-for-update");
+
+    //Moved the emit of checking-for-update here to getUpdateInfoAndProvider, so it doesn't emit if updater is not configured.
+    const result = await this.getUpdateInfoAndProvider(provider)
+
     const updateInfo = result.info
-    if (!(await this.isUpdateAvailable(updateInfo))) {
+    if (!this.isUpdateAvailable(result)) {
       if (this.useSemver === false) {
         this._logger.info(`Update for version ${this.currentVersionString} is not available (latest version: ${updateInfo.version}).`)
       } else {
@@ -417,9 +445,9 @@ export abstract class AppUpdater extends EventEmitter {
 
   /**
    * Start downloading update manually. You can use this method if `autoDownload` option is set to `false`.
-   * @returns {Promise<string>} Path to downloaded file.
+   * @returns {Promise<string>} Path(s) to downloaded file(s).
    */
-  downloadUpdate(cancellationToken: CancellationToken = new CancellationToken()): Promise<any> {
+  downloadUpdate(cancellationToken: CancellationToken = new CancellationToken()): Promise<readonly string[]> {
     const updateInfoAndProvider = this.updateInfoAndProvider
     if (updateInfoAndProvider == null) {
       const error = new Error("Please check update first")
@@ -501,8 +529,11 @@ export abstract class AppUpdater extends EventEmitter {
     return this.computeFinalHeaders({ accept: "*/*" })
   }
 
-  private async getOrCreateStagingUserId(): Promise<string> {
-    const file = path.join(this.app.userDataPath, ".updaterId")
+  private async getOrCreateStagingUserId(): Promise<string | null> {
+    const file = this.app.isExternalApp ? this.app.stagingUserIdPath : path.join(this.app.userDataPath, ".updaterId")
+    if (file == null)
+      return null
+
     try {
       const id = await readFile(file, "utf-8")
       if (UUID.check(id)) {
@@ -552,15 +583,13 @@ export abstract class AppUpdater extends EventEmitter {
   private async getOrCreateDownloadHelper(): Promise<DownloadedUpdateHelper> {
     let result = this.downloadedUpdateHelper
     if (result == null) {
-      const dirName = (await this.configOnDisk.value).updaterCacheDirName
+      const dirName = (await this.configOnDisk.value)?.updaterCacheDirName
       const logger = this._logger
       if (dirName == null) {
         logger.error("updaterCacheDirName is not specified in app-update.yml Was app build using at least electron-builder 20.34.0?")
       }
       const cacheDir = path.join(this.app.baseCachePath, dirName || this.app.name)
-      if (logger.debug != null) {
-        logger.debug(`updater cache dir: ${cacheDir}`)
-      }
+      logger.debug?.(`updater cache dir: ${cacheDir}`)
 
       result = new DownloadedUpdateHelper(cacheDir)
       this.downloadedUpdateHelper = result
@@ -673,7 +702,8 @@ export class NoOpLogger implements Logger {
 
 export interface UpdateInfoAndProvider {
   info: UpdateInfo
-  provider: Provider<any>
+  provider: Provider
+  stagingUserId: string | null
 }
 
 export interface DownloadExecutorTask {

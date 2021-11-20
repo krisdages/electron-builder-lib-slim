@@ -157,7 +157,7 @@ export class DownloadedUpdateHelper {
   }
 }
 
-interface CachedUpdateInfo {
+export interface CachedUpdateInfo {
   fileName: string
   sha512: string
   readonly isAdminRightsRequired: boolean

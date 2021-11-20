@@ -15,7 +15,7 @@ export interface ProviderRuntimeOptions {
   executor: ElectronHttpExecutor
 }
 
-export abstract class Provider<T extends UpdateInfo> {
+export abstract class Provider<T extends UpdateInfo = UpdateInfo> {
   private requestHeaders: OutgoingHttpHeaders | null = null
   protected readonly executor: ElectronHttpExecutor
 

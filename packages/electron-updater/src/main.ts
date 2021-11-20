@@ -44,14 +44,16 @@ export interface ResolvedUpdateFileInfo {
 }
 
 export interface UpdateCheckResult {
-  readonly updateInfo: UpdateInfo
+  readonly updateInfo: UpdateInfo | null
 
-  readonly downloadPromise?: Promise<Array<string>> | null
+  readonly downloadPromise?: Promise<ReadonlyArray<string>> | null
 
   readonly cancellationToken?: CancellationToken
 
   /** @deprecated */
-  readonly versionInfo: UpdateInfo
+  readonly versionInfo: UpdateInfo | null
+
+  readonly isUpdaterUnconfigured?: true;
 }
 
 export type UpdaterEvents = "login" | "checking-for-update" | "update-available" | "update-not-available" | "update-cancelled" | "download-progress" | "update-downloaded" | "error"
@@ -67,20 +69,20 @@ export class UpdaterSignal {
   /**
    * Emitted when an authenticating proxy is [asking for user credentials](https://github.com/electron/electron/blob/master/docs/api/client-request.md#event-login).
    */
-  login(handler: LoginHandler): void {
-    addHandler(this.emitter, "login", handler)
+  login(handler: LoginHandler, disposed?: Promise<unknown>): void {
+    addHandler(this.emitter, "login", handler, disposed)
   }
 
-  progress(handler: (info: ProgressInfo) => void): void {
-    addHandler(this.emitter, DOWNLOAD_PROGRESS, handler)
+  progress(handler: (info: ProgressInfo) => void, disposed?: Promise<unknown>): void {
+    addHandler(this.emitter, DOWNLOAD_PROGRESS, handler, disposed)
   }
 
-  updateDownloaded(handler: (info: UpdateDownloadedEvent) => void): void {
-    addHandler(this.emitter, UPDATE_DOWNLOADED, handler)
+  updateDownloaded(handler: (info: UpdateDownloadedEvent) => void, disposed?: Promise<unknown>): void {
+    addHandler(this.emitter, UPDATE_DOWNLOADED, handler, disposed)
   }
 
-  updateCancelled(handler: (info: UpdateInfo) => void): void {
-    addHandler(this.emitter, "update-cancelled", handler)
+  updateCancelled(handler: (info: UpdateInfo) => void, disposed?: Promise<unknown>): void {
+    addHandler(this.emitter, "update-cancelled", handler, disposed)
   }
 }
 
@@ -90,15 +92,16 @@ export interface UpdateDownloadedEvent extends UpdateInfo {
 
 const isLogEvent = false
 
-function addHandler(emitter: EventEmitter, event: UpdaterEvents, handler: (...args: Array<any>) => void): void {
-  if (isLogEvent) {
-    emitter.on(event, (...args: Array<any>) => {
+function addHandler(emitter: EventEmitter, event: UpdaterEvents, handler: (...args: Array<any>) => void, disposed?: Promise<unknown>): void {
+  const effHandler = (isLogEvent)
+    ? (...args: Array<any>) => {
       console.log("%s %s", event, args)
       handler(...args)
-    })
-  } else {
-    emitter.on(event, handler)
-  }
+    }
+    : handler
+
+  emitter.on(event, effHandler)
+  disposed?.finally(() => emitter.off(event, effHandler))
 }
 
 export interface Logger {
