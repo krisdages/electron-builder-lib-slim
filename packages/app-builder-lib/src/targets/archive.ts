@@ -17,18 +17,18 @@ export async function tar(
   tempDirManager: TmpDir
 ): Promise<void> {
   const tarFile = await tempDirManager.getTempFile({ suffix: ".tar" })
-  const tarArgs = debug7zArgs("a")
-  tarArgs.push(tarFile)
-  tarArgs.push(path.basename(dirToArchive))
-
-  await Promise.all([
-    exec(path7za, tarArgs, { cwd: path.dirname(dirToArchive) }),
-    // remove file before - 7z doesn't overwrite file, but update
-    unlinkIfExists(outFile),
-  ])
-
-  /* keep the tar name dir even on mac - the dirToArchive is the .app directory */
   if (!isMacApp) {
+    const tarArgs = debug7zArgs("a");
+    tarArgs.push(tarFile);
+    tarArgs.push(path.basename(dirToArchive));
+
+    await Promise.all([
+      exec(path7za, tarArgs, { cwd: path.dirname(dirToArchive) }),
+      // remove file before - 7z doesn't overwrite file, but update
+      unlinkIfExists(outFile),
+    ])
+
+    /* add the tar name as a directory */
     await exec(path7za, ["rn", tarFile, path.basename(dirToArchive), path.basename(outFile, `.${format}`)])
   }
   else {
@@ -36,6 +36,17 @@ export async function tar(
       throw Error("Expected mac dirToArchive to be <name>.app");
     }
     const dotAppDir = path.basename(dirToArchive);
+
+    //Use `tar` to do this. 7z's tar doesn't appear to keep the Frameworks symlinks, even with the -snl option.
+    // But running `tar` likely won't work when running on windows...
+    await exec("tar", [
+      "-cvf",
+      tarFile,
+      dotAppDir,
+
+    ], { cwd: path.dirname(dirToArchive) });
+
+    /* keep the tar name dir even on mac - the dirToArchive is the .app directory */
     await exec(path7za, ["rn", tarFile, dotAppDir, path.join(path.basename(outFile, `.${format}`), dotAppDir)]);
   }
 
