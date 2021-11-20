@@ -65,7 +65,7 @@
     "@types/fs-extra": "9.0.12",
     "@types/js-yaml": "4.0.3",
     "@types/semver": "7.3.8",
-    "dmg-builder": "workspace:*"
+    "dmg-builder": "workspace:@krisdages/dmg-builder@*"
   },
   "//": "electron-builder-squirrel-windows and dmg-builder added as dev dep for tests (as otherwise `require` doesn't work using Yarn 2)",
   "typings": "./out/index.d.ts"

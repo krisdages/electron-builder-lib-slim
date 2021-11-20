@@ -17,8 +17,8 @@
 	],
 	"dependencies": {
 		"app-builder-lib": "workspace:@krisdages/electron-builder-lib-slim@*",
-		"builder-util": "workspace:*",
-		"builder-util-runtime": "workspace:*",
+		"builder-util": "workspace:@krisdages/builder-util@*",
+		"builder-util-runtime": "workspace:@krisdages/builder-util-runtime@*",
 		"fs-extra": "^10.0.0",
 		"iconv-lite": "^0.6.2",
 		"js-yaml": "^4.1.0"
