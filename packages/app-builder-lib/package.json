@@ -1,7 +1,7 @@
 {
   "name": "@krisdages/electron-builder-lib-slim",
   "description": "electron-builder lib",
-  "version": "22.14.7-slim-2.0.0",
+  "version": "22.14.7-slim-2.0.1",
   "main": "out/index.js",
   "files": [
     "out",

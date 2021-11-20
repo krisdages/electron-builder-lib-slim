@@ -1,6 +1,6 @@
 {
   "name": "@krisdages/electron-updater",
-  "version": "4.6.2-slim-2.0.0",
+  "version": "4.6.2-slim-2.0.1",
   "description": "Cross platform updater for electron applications",
   "main": "out/main.js",
   "author": "Vladimir Krivosheev",
