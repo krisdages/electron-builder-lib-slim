@@ -1,8 +1,10 @@
 !include "nsProcess.nsh"
 
 !ifmacrondef customCheckAppRunning
+!ifndef NO_EXECUTABLE
   !include "getProcessInfo.nsh"
   Var pid
+!endif
 !endif
 
 # http://nsis.sourceforge.net/Allow_only_one_installer_instance
@@ -30,7 +32,7 @@
 !macro CHECK_APP_RUNNING
     !ifmacrodef customCheckAppRunning
       !insertmacro customCheckAppRunning
-    !else
+    !else ifndef NO_EXECUTABLE
       !insertmacro _CHECK_APP_RUNNING
     !endif
 !macroend

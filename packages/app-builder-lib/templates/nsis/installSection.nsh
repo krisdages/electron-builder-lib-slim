@@ -65,11 +65,13 @@ SetOutPath $INSTDIR
 !insertmacro addStartMenuLink $keepShortcuts
 !insertmacro addDesktopLink $keepShortcuts
 
-${if} ${FileExists} "$newStartMenuLink"
-  StrCpy $launchLink "$newStartMenuLink"
-${else}
-  StrCpy $launchLink "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
-${endIf}
+!ifndef NO_EXECUTABLE
+  ${if} ${FileExists} "$newStartMenuLink"
+    StrCpy $launchLink "$newStartMenuLink"
+  ${else}
+    StrCpy $launchLink "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+  ${endIf}
+!endif
 
 !ifmacrodef registerFileAssociations
   !insertmacro registerFileAssociations
@@ -85,6 +87,7 @@ ${endIf}
   !insertmacro StartApp
 !macroend
 
+!ifndef NO_EXECUTABLE
 !ifdef ONE_CLICK
   # https://github.com/electron-userland/electron-builder/pull/3093#issuecomment-403734568
   !ifdef RUN_AFTER_FINISH
@@ -104,4 +107,5 @@ ${endIf}
   ${andIf} ${Silent}
     !insertmacro doStartApp
   ${endIf}
+!endif
 !endif

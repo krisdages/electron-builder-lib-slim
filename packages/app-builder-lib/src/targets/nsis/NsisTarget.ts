@@ -150,6 +150,7 @@ export class NsisTarget extends Target {
     )
     const oneClick = options.oneClick !== false
     const installerPath = path.join(this.outDir, installerFilename)
+    const rawApp = packager.config.rawApp
 
     const logFields: any = {
       target: this.name,
@@ -191,6 +192,16 @@ export class NsisTarget extends Target {
 
       APP_PACKAGE_NAME: appInfo.name,
     }
+
+    if (rawApp != null) {
+      if (rawApp.primaryExecutablePath == null) {
+        defines.NO_EXECUTABLE = null
+      }
+      else {
+        defines.APP_EXECUTABLE_FILENAME = path.win32.normalize(rawApp.primaryExecutablePath)
+      }
+    }
+
     if (options.debugLogging) {
       defines.ENABLE_LOGGING = null
     }

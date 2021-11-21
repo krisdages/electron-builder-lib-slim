@@ -143,15 +143,19 @@ end:
 !macroend ;FUNC_GETPROCESSINFO
 
 !ifndef BUILD_UNINSTALLER
+!ifndef NO_EXECUTABLE
 Function _GetProcessInfo
     !insertmacro FUNC_GETPROCESSINFO
 FunctionEnd
 !endif
+!endif
 
 !ifdef BUILD_UNINSTALLER
+!ifndef NO_EXECUTABLE
 Function un._GetProcessInfo
     !insertmacro FUNC_GETPROCESSINFO
 FunctionEnd
+!endif
 !endif
 
 !endif ;GETPROCESSINFO_INCLUDED

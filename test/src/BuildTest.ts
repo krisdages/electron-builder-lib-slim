@@ -1,11 +1,9 @@
 import { createTargets, DIR_TARGET, Platform } from "app-builder-lib"
-import { readAsar } from "app-builder-lib/out/asar/asar"
 import { doMergeConfigs } from "app-builder-lib/out/util/config"
-import { walk } from "builder-util/out/fs"
-import { promises as fs, readFileSync } from "fs"
+import { promises as fs } from "fs"
 import { outputJson } from "fs-extra"
 import * as path from "path"
-import { app, appTwo, appTwoThrows, assertPack, linuxDirTarget, modifyPackageJson, packageJson, toSystemIndependentPath } from "./helpers/packTester"
+import { app, appTwo, appTwoThrows, assertPack, linuxDirTarget, modifyPackageJson } from "./helpers/packTester"
 import { ELECTRON_VERSION } from "./helpers/testConfig"
 
 test("merge configurations", () => {
@@ -227,7 +225,8 @@ test.ifLinuxOrDevMac("beforeBuild", () => {
     {
       targets: createTargets([Platform.LINUX, Platform.MAC], DIR_TARGET),
       config: {
-        npmRebuild: true,
+        // This functionality was removed in the slim package
+        // npmRebuild: true,
         beforeBuild: async () => {
           called++
         },
@@ -239,44 +238,6 @@ test.ifLinuxOrDevMac("beforeBuild", () => {
       },
     }
   )
-})
-
-// https://github.com/electron-userland/electron-builder/issues/1738
-test.ifDevOrLinuxCi("win smart unpack", () => {
-  // test onNodeModuleFile hook
-  const nodeModuleFiles: Array<string> = []
-  let p = ""
-  return app(
-    {
-      targets: Platform.WINDOWS.createTarget(DIR_TARGET),
-      config: {
-        npmRebuild: true,
-        onNodeModuleFile: file => {
-          const name = toSystemIndependentPath(path.relative(p, file))
-          if (!name.startsWith(".") && !name.endsWith(".dll") && name.includes(".")) {
-            nodeModuleFiles.push(name)
-          }
-        },
-      },
-    },
-    {
-      projectDirCreated: projectDir => {
-        p = projectDir
-        return packageJson(it => {
-          it.dependencies = {
-            debug: "3.1.0",
-            "edge-cs": "1.2.1",
-            "@electron-builder/test-smart-unpack": "1.0.0",
-            "@electron-builder/test-smart-unpack-empty": "1.0.0",
-          }
-        })(projectDir)
-      },
-      packed: async context => {
-        await verifySmartUnpack(context.getResources(Platform.WINDOWS))
-        expect(nodeModuleFiles).toMatchSnapshot()
-      },
-    }
-  )()
 })
 
 export function removeUnstableProperties(data: any) {
@@ -293,57 +254,3 @@ export function removeUnstableProperties(data: any) {
     })
   )
 }
-
-async function verifySmartUnpack(resourceDir: string) {
-  const asarFs = await readAsar(path.join(resourceDir, "app.asar"))
-  expect(await asarFs.readJson(`node_modules${path.sep}debug${path.sep}package.json`)).toMatchObject({
-    name: "debug",
-  })
-  expect(removeUnstableProperties(asarFs.header)).toMatchSnapshot()
-
-  const files = (await walk(resourceDir, file => !path.basename(file).startsWith(".") && !file.endsWith(`resources${path.sep}inspector`))).map(it => {
-    const name = toSystemIndependentPath(it.substring(resourceDir.length + 1))
-    if (it.endsWith("package.json")) {
-      return { name, content: readFileSync(it, "utf-8") }
-    }
-    return name
-  })
-  expect(files).toMatchSnapshot()
-}
-
-// https://github.com/electron-userland/electron-builder/issues/1738
-test.ifDevOrLinuxCi(
-  "posix smart unpack",
-  app(
-    {
-      targets: linuxDirTarget,
-      config: {
-        // https://github.com/electron-userland/electron-builder/issues/3273
-        // tslint:disable-next-line:no-invalid-template-strings
-        copyright: "Copyright © 2018 ${author}",
-        npmRebuild: true,
-        files: [
-          // test ignore pattern for node_modules defined as file set filter
-          {
-            filter: ["!node_modules/napi-build-utils/napi-build-utils-1.0.0.tgz", "!node_modules/node-abi/*"],
-          },
-        ],
-      },
-    },
-    {
-      projectDirCreated: packageJson(it => {
-        it.dependencies = {
-          debug: "4.1.1",
-          "edge-cs": "1.2.1",
-          // no prebuilt for electron 3
-          // "lzma-native": "3.0.10",
-          keytar: "5.6.0",
-        }
-      }),
-      packed: context => {
-        expect(context.packager.appInfo.copyright).toBe("Copyright © 2018 Foo Bar")
-        return verifySmartUnpack(context.getResources(Platform.LINUX))
-      },
-    }
-  )
-)

@@ -272,7 +272,6 @@ test.ifNotWindows(
           config: {
             electronVersion: ELECTRON_VERSION,
             compression: "store",
-            npmRebuild: false,
           },
         })
 

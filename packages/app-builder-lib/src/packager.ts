@@ -9,9 +9,9 @@ import { release as getOsRelease } from "os"
 import * as path from "path"
 import { AppInfo } from "./appInfo"
 import { readAsarJson } from "./asar/asar"
-import { AfterPackContext, Configuration } from "./configuration"
+import { AfterPackContext, Configuration, RawAppOptions } from "./configuration"
 import { Platform, Target } from "./core"
-import { createElectronFrameworkSupport as createFrameworkInfo } from "./electron/ElectronFramework"
+import { createElectronFrameworkSupport } from "./electron/ElectronFramework"
 import { Framework } from "./Framework"
 import { Metadata } from "./options/metadata"
 import { AsarOptions } from "./options/PlatformSpecificBuildOptions"
@@ -28,7 +28,11 @@ function addHandler(emitter: EventEmitter, event: string, handler: (...args: Arr
   emitter.on(event, handler)
 }
 
-export { createFrameworkInfo }
+export async function createFrameworkInfo(configuration: Configuration, packager: Packager): Promise<Framework | null> {
+  return(configuration.rawApp != null)
+    ? new RawAppFramework(configuration.rawApp)
+    : createElectronFrameworkSupport(configuration, packager);
+}
 
 export class Packager {
   readonly projectDir: string
@@ -281,9 +285,13 @@ export class Packager {
     const appPackageFile = this.isTwoPackageJsonProjectLayoutUsed ? path.join(this.appDir, "package.json") : devPackageFile
 
     // tslint:disable:prefer-conditional-expression
-    if (this.devMetadata != null && !this.isTwoPackageJsonProjectLayoutUsed) {
+    if (configuration.rawApp?.metadata != null) {
+      this._metadata = configuration.rawApp.metadata
+    }
+    else if (this.devMetadata != null && !this.isTwoPackageJsonProjectLayoutUsed) {
       this._metadata = this.devMetadata
-    } else {
+    }
+    else {
       this._metadata = await this.readProjectMetadataIfTwoPackageStructureOrPrepacked(appPackageFile)
     }
     deepAssign(this.metadata, configuration.extraMetadata)
@@ -484,6 +492,25 @@ function createOutDirIfNeed(targetList: Array<Target>, createdOutDirs: Set<strin
           .then(() => createdOutDirs.add(dir))
       })
   )
+}
+
+class RawAppFramework implements Framework {
+  constructor(private readonly rawApp: RawAppOptions) {
+
+  }
+
+  readonly defaultAppIdPrefix = "";
+  readonly isCopyElevateHelper = true;
+  readonly macOsDefaultTargets = [];
+
+  get name() { return this.rawApp.metadata.name; }
+  get version() { return this.rawApp.metadata.version; }
+
+  get distMacOsAppName(): string { throw Error("distMacOsAppName is not applicable to 'rawApp'") }
+
+  prepareApplicationStageDirectory(): Promise<any> {
+    return Promise.resolve(undefined);
+  }
 }
 
 export interface BuildResult {

@@ -10,8 +10,15 @@ SpaceTexts none
 FileBufSize 64
 Name "${PRODUCT_NAME}"
 
-!define APP_EXECUTABLE_FILENAME "${PRODUCT_FILENAME}.exe"
+!ifndef APP_EXECUTABLE_FILENAME
+  !ifdef NO_EXECUTABLE
+    !define APP_EXECUTABLE_FILENAME ""
+  !else
+    !define APP_EXECUTABLE_FILENAME "${PRODUCT_FILENAME}.exe"
+  !endif
+!endif
 !define UNINSTALL_FILENAME "Uninstall ${PRODUCT_FILENAME}.exe"
+
 
 !macro check64BitAndSetRegView
   # https://github.com/electron-userland/electron-builder/issues/2420
@@ -106,7 +113,7 @@ Name "${PRODUCT_NAME}"
     LogSet ${SETTING}
   !endif
 !macroend
- 
+
 !define LogText "!insertmacro LogTextMacro"
 !macro LogTextMacro INPUT_TEXT
   !ifdef ENABLE_LOGGING

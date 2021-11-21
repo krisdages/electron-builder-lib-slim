@@ -39,17 +39,18 @@
       ${endIf}
     FunctionEnd
   !endif
-  
+
   # after change installation directory and before install start, you can show custom page here.
   !ifmacrodef customPageAfterChangeDir
     !insertmacro customPageAfterChangeDir
   !endif
-  
+
   !insertmacro MUI_PAGE_INSTFILES
   !ifmacrodef customFinishPage
     !insertmacro customFinishPage
   !else
     !ifndef HIDE_RUN_AFTER_FINISH
+    !ifndef NO_EXECUTABLE
       Function StartApp
         ${if} ${isUpdated}
           StrCpy $1 "--updated"
@@ -62,6 +63,8 @@
       !define MUI_FINISHPAGE_RUN
       !define MUI_FINISHPAGE_RUN_FUNCTION "StartApp"
     !endif
+    !endif
+
     !insertmacro MUI_PAGE_FINISH
   !endif
 !else

@@ -24,7 +24,9 @@ Var oldMenuDirectory
   SilentInstall silent
 !else
   Var appExe
-  Var launchLink
+  !ifndef NO_EXECUTABLE
+    Var launchLink
+  !endif
 !endif
 
 !ifdef ONE_CLICK

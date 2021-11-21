@@ -4,6 +4,7 @@ import { ElectronBrandingOptions, ElectronDownloadOptions } from "./electron/Ele
 import { PrepareApplicationStageDirectoryOptions } from "./Framework"
 import { AppImageOptions, LinuxConfiguration } from "./options/linuxOptions"
 import { DmgOptions, MacConfiguration } from "./options/macOptions"
+import { Metadata } from "./options/metadata"
 import { MsiOptions } from "./options/MsiOptions"
 import { PlatformSpecificBuildOptions } from "./options/PlatformSpecificBuildOptions"
 import { WindowsConfiguration } from "./options/winOptions"
@@ -36,6 +37,15 @@ export interface Configuration extends PlatformSpecificBuildOptions {
   readonly copyright?: string | null
 
   readonly directories?: MetadataDirectories | null
+
+  // /**
+  //  * For advanced use cases.
+  //  * If set, package will be built using the contents of `directories.app` without the Electron framework or resources directory,
+  //  *  possibly as an "auxiliary installer" with files only and no executable.
+  //  *  or with a specific primary executable (relative to `directories.app`).
+  //  * Not supported by all targets - only nsis* as of 2021-11-20
+  //  */
+  readonly rawApp?: RawAppOptions | null;
 
   /**
    * Options related to how build macOS targets.
@@ -70,16 +80,6 @@ export interface Configuration extends PlatformSpecificBuildOptions {
    * @default false
    */
   includeSubNodeModules?: boolean
-
-  /**
-   * Additional command line arguments to use when installing app native deps.
-   */
-  readonly npmArgs?: Array<string> | string | null
-  /**
-   * Whether to [rebuild](https://docs.npmjs.com/cli/rebuild) native dependencies before starting to package the app.
-   * @default true
-   */
-  readonly npmRebuild?: boolean
 
   /**
    * The build version. Maps to the `CFBundleVersion` on macOS, and `FileVersion` metadata property on Windows. Defaults to the `version`.
@@ -126,12 +126,6 @@ export interface Configuration extends PlatformSpecificBuildOptions {
    * @default false
    */
   readonly forceCodeSigning?: boolean
-
-  /**
-   * *libui-based frameworks only* The version of NodeJS you are packaging for.
-   * You can set it to `current` to set the Node.js version that you use to run.
-   */
-  readonly nodeVersion?: string | null
 
   /**
    * The function (or path to file or module id) to be [run before pack](#beforepack)
@@ -226,3 +220,15 @@ export interface MetadataDirectories {
    */
   readonly app?: string | null
 }
+
+export interface RawAppOptions {
+  /** `null` indicates no executable (i.e. an auxiliary files installer) */
+  readonly primaryExecutablePath: string | null
+  /** Metadata that would normally be in package.json, which may not exist in the raw app dir */
+  readonly metadata: RawAppMetadata
+}
+
+export type RawAppMetadata = Omit<Metadata, "build"> & {
+  readonly [K in keyof Pick<Metadata, "name" | "version" | "author">]-?: Exclude<Metadata[K], null>;
+}
+
