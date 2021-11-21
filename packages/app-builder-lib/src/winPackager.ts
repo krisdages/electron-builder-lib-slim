@@ -24,7 +24,7 @@ import { RequestedExecutionLevel, WindowsConfiguration } from "./options/winOpti
 import { Packager } from "./packager"
 import { chooseNotNull, PlatformPackager } from "./platformPackager"
 import { NsisTarget } from "./targets/nsis/NsisTarget"
-import { AppPackageHelper, CopyElevateHelper } from "./targets/nsis/nsisUtil"
+import { AppPackageHelper } from "./targets/nsis/nsisUtil"
 import { WebInstallerTarget } from "./targets/nsis/WebInstallerTarget"
 import { createCommonTarget } from "./targets/targetFactory"
 import { BuildCacheManager, digest } from "./util/cacheManager"
@@ -137,18 +137,18 @@ export class WinPackager extends PlatformPackager<WindowsConfiguration> {
   }
 
   createTargets(targets: Array<string>, mapper: (name: string, factory: (outDir: string) => Target) => void): void {
-    let copyElevateHelper: CopyElevateHelper | null
-    const getCopyElevateHelper = () => {
-      if (copyElevateHelper == null) {
-        copyElevateHelper = new CopyElevateHelper()
-      }
-      return copyElevateHelper
-    }
+    // let copyElevateHelper: CopyElevateHelper | null
+    // const getCopyElevateHelper = () => {
+    //   if (copyElevateHelper == null) {
+    //     copyElevateHelper = new CopyElevateHelper()
+    //   }
+    //   return copyElevateHelper
+    // }
 
     let helper: AppPackageHelper | null
     const getHelper = () => {
       if (helper == null) {
-        helper = new AppPackageHelper(getCopyElevateHelper())
+        helper = new AppPackageHelper(/*getCopyElevateHelper()*/)
       }
       return helper
     }
@@ -162,7 +162,7 @@ export class WinPackager extends PlatformPackager<WindowsConfiguration> {
         mapper(name, outDir => new NsisTarget(this, outDir, name, getHelper()))
       } else if (name === "nsis-web") {
         // package file format differs from nsis target
-        mapper(name, outDir => new WebInstallerTarget(this, path.join(outDir, name), name, new AppPackageHelper(getCopyElevateHelper())))
+        mapper(name, outDir => new WebInstallerTarget(this, path.join(outDir, name), name, new AppPackageHelper(/*getCopyElevateHelper()*/)))
       } else {
         const targetClass: typeof NsisTarget | null = (() => {
           switch (name) {

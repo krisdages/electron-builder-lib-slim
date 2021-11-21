@@ -1,13 +1,11 @@
-import { Arch, log } from "builder-util"
+import { Arch } from "builder-util"
 import { PackageFileInfo } from "builder-util-runtime"
-import { getBinFromUrl, getBinFromCustomLoc } from "../../binDownload"
-import { copyFile } from "builder-util/out/fs"
-import * as path from "path"
-import { getTemplatePath } from "../../util/pathManager"
-import { NsisTarget } from "./NsisTarget"
 import * as fs from "fs/promises"
 import * as zlib from "zlib"
+import { getBinFromCustomLoc, getBinFromUrl } from "../../binDownload"
+import { getTemplatePath } from "../../util/pathManager"
 import { NsisOptions } from "./nsisOptions"
+import { NsisTarget } from "./NsisTarget"
 
 export const nsisTemplatesDir = getTemplatePath("nsis")
 
@@ -45,13 +43,16 @@ export class AppPackageHelper {
   /** @private */
   refCount = 0
 
-  constructor(private readonly elevateHelper: CopyElevateHelper) {}
+  constructor(/*private readonly elevateHelper: CopyElevateHelper*/) {}
 
   async packArch(arch: Arch, target: NsisTarget): Promise<PackageFileInfo> {
     let infoPromise = this.archToFileInfo.get(arch)
     if (infoPromise == null) {
       const appOutDir = target.archs.get(arch)!
-      infoPromise = this.elevateHelper.copy(appOutDir, target).then(() => target.buildAppPackage(appOutDir, arch))
+      infoPromise = (async () => {
+        //await this.elevateHelper.copy(appOutDir, target);
+        return await target.buildAppPackage(appOutDir, arch)
+      })()
       this.archToFileInfo.set(arch, infoPromise)
     }
 
@@ -80,41 +81,41 @@ export class AppPackageHelper {
   }
 }
 
-export class CopyElevateHelper {
-  private readonly copied = new Map<string, Promise<any>>()
-
-  copy(appOutDir: string, target: NsisTarget): Promise<any> {
-    if (!target.packager.info.framework.isCopyElevateHelper) {
-      return Promise.resolve()
-    }
-
-    let isPackElevateHelper = target.options.packElevateHelper
-    if (isPackElevateHelper === false && target.options.perMachine === true) {
-      isPackElevateHelper = true
-      log.warn("`packElevateHelper = false` is ignored, because `perMachine` is set to `true`")
-    }
-
-    if (isPackElevateHelper === false) {
-      return Promise.resolve()
-    }
-
-    let promise = this.copied.get(appOutDir)
-    if (promise != null) {
-      return promise
-    }
-
-    promise = NSIS_PATH().then(async (it) => {
-      await fs.mkdir(path.join(appOutDir, "resources"), { recursive: true })
-      const outFile = path.join(appOutDir, "resources", "elevate.exe")
-      await copyFile(path.join(it, "elevate.exe"), outFile, false)
-      if (target.packager.platformSpecificBuildOptions.signAndEditExecutable !== false) {
-        await target.packager.sign(outFile)
-      }
-    })
-    this.copied.set(appOutDir, promise)
-    return promise
-  }
-}
+// export class CopyElevateHelper {
+//   private readonly copied = new Map<string, Promise<any>>()
+//
+//   copy(appOutDir: string, target: NsisTarget): Promise<any> {
+//     if (!target.packager.info.framework.isCopyElevateHelper) {
+//       return Promise.resolve()
+//     }
+//
+//     let isPackElevateHelper = target.options.packElevateHelper
+//     if (isPackElevateHelper === false && target.options.perMachine === true) {
+//       isPackElevateHelper = true
+//       log.warn("`packElevateHelper = false` is ignored, because `perMachine` is set to `true`")
+//     }
+//
+//     if (isPackElevateHelper === false) {
+//       return Promise.resolve()
+//     }
+//
+//     let promise = this.copied.get(appOutDir)
+//     if (promise != null) {
+//       return promise
+//     }
+//
+//     promise = NSIS_PATH().then(async (it) => {
+//       await fs.mkdir(path.join(appOutDir, "resources"), { recursive: true })
+//       const outFile = path.join(appOutDir, "resources", "elevate.exe")
+//       await copyFile(path.join(it, "elevate.exe"), outFile, false)
+//       if (target.packager.platformSpecificBuildOptions.signAndEditExecutable !== false) {
+//         await target.packager.sign(outFile)
+//       }
+//     })
+//     this.copied.set(appOutDir, promise)
+//     return promise
+//   }
+// }
 
 class BinaryReader {
   private readonly _buffer: Buffer

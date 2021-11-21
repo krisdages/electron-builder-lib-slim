@@ -500,7 +500,7 @@ class RawAppFramework implements Framework {
   }
 
   readonly defaultAppIdPrefix = "";
-  readonly isCopyElevateHelper = true;
+  // readonly isCopyElevateHelper = true;
   readonly macOsDefaultTargets = [];
 
   get name() { return this.rawApp.metadata.name; }

@@ -2,7 +2,7 @@ import { Arch, archFromString, Platform } from "app-builder-lib"
 import * as fs from "fs/promises"
 import * as path from "path"
 import { app, assertPack, copyTestAsset } from "../helpers/packTester"
-import { checkHelpers, doTest, expectUpdateMetadata } from "../helpers/winHelper"
+import { doTest, expectUpdateMetadata } from "../helpers/winHelper"
 
 const nsisTarget = Platform.WINDOWS.createTarget(["nsis"])
 
@@ -184,7 +184,6 @@ test.ifAll.ifNotCiMac(
       },
       packed: async context => {
         await expectUpdateMetadata(context, archFromString(process.arch))
-        await checkHelpers(context.getResources(Platform.WINDOWS), true)
         await doTest(context.outDir, false)
       },
     }

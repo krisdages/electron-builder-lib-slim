@@ -117,7 +117,7 @@ class ElectronFramework implements Framework {
   // noinspection JSUnusedGlobalSymbols
   readonly defaultAppIdPrefix = "com.electron."
   // noinspection JSUnusedGlobalSymbols
-  readonly isCopyElevateHelper = true
+  // readonly isCopyElevateHelper = true
 
   constructor(readonly name: string, readonly version: string, readonly distMacOsAppName: string) {}
 

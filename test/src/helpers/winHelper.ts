@@ -19,15 +19,6 @@ export async function expectUpdateMetadata(context: PackedContext, arch: Arch = 
   expect(data).toMatchSnapshot()
 }
 
-export async function checkHelpers(resourceDir: string, isPackElevateHelper: boolean) {
-  const elevateHelperExecutable = path.join(resourceDir, "elevate.exe")
-  if (isPackElevateHelper) {
-    await assertThat(elevateHelperExecutable).isFile()
-  } else {
-    await assertThat(elevateHelperExecutable).doesNotExist()
-  }
-}
-
 export async function doTest(outDir: string, perUser: boolean, productFilename = "TestApp Setup", name = "TestApp", menuCategory: string | null = null, packElevateHelper = true) {
   if (process.env.DO_WINE !== "true") {
     return Promise.resolve()

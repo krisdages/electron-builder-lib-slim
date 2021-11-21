@@ -1868,11 +1868,6 @@
           "description": "Whether to create one-click installer or assisted.",
           "type": "boolean"
         },
-        "packElevateHelper": {
-          "default": true,
-          "description": "Whether to pack the elevate executable (required for electron-updater if per-machine installer used or can be used in the future). Ignored if `perMachine` is set to `true`.",
-          "type": "boolean"
-        },
         "perMachine": {
           "default": false,
           "description": "Whether to show install mode installer page (choice per-machine or per-user) for assisted installer. Or whether installation always per all users (per-machine).\n\nIf `oneClick` is `true` (default): Whether to install per all users (per-machine).\n\nIf `oneClick` is `false` and `perMachine` is `true`: no install mode installer page, always install per-machine.\n\nIf `oneClick` is `false` and `perMachine` is `false` (default): install mode installer page.",
@@ -2159,11 +2154,6 @@
         "oneClick": {
           "default": true,
           "description": "Whether to create one-click installer or assisted.",
-          "type": "boolean"
-        },
-        "packElevateHelper": {
-          "default": true,
-          "description": "Whether to pack the elevate executable (required for electron-updater if per-machine installer used or can be used in the future). Ignored if `perMachine` is set to `true`.",
           "type": "boolean"
         },
         "perMachine": {

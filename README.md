@@ -22,6 +22,7 @@ Please refer to the main project for documentation, as docs were removed from th
 ### Removals
 * CLI
 * Publisher providers
+* elevate.exe helper
 * snap, deb, pkg, mas, Squirrel.Windows, and all other targets not listed above.
 * node-gyp/electron-compile/rebuild etc
 * Proton, libui frameworks

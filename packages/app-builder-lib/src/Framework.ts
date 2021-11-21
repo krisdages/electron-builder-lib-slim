@@ -9,7 +9,7 @@ export interface Framework {
   readonly macOsDefaultTargets: Array<string>
   readonly defaultAppIdPrefix: string
 
-  readonly isCopyElevateHelper: boolean
+  // readonly isCopyElevateHelper: boolean
 
   getDefaultIcon?(platform: Platform): string | null
 

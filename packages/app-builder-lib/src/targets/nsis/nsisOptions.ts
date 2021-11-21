@@ -187,12 +187,6 @@ export interface NsisOptions extends CommonNsisOptions, CommonWindowsInstallerCo
    */
   readonly multiLanguageInstaller?: boolean
   /**
-   * Whether to pack the elevate executable (required for electron-updater if per-machine installer used or can be used in the future). Ignored if `perMachine` is set to `true`.
-   * @default true
-   */
-  readonly packElevateHelper?: boolean
-
-  /**
    * The file extension of files that will be not compressed. Applicable only for `extraResources` and `extraFiles` files.
    * @default [".avi", ".mov", ".m4v", ".mp4", ".m4p", ".qt", ".mkv", ".webm", ".vmdk"]
    */
