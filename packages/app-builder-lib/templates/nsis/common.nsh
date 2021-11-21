@@ -17,8 +17,9 @@ Name "${PRODUCT_NAME}"
     !define APP_EXECUTABLE_FILENAME "${PRODUCT_FILENAME}.exe"
   !endif
 !endif
-!define UNINSTALL_FILENAME "Uninstall ${PRODUCT_FILENAME}.exe"
-
+!ifndef UNINSTALL_FILENAME
+  !define UNINSTALL_FILENAME "Uninstall ${PRODUCT_FILENAME}.exe"
+!endif
 
 !macro check64BitAndSetRegView
   # https://github.com/electron-userland/electron-builder/issues/2420

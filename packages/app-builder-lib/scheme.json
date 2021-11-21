@@ -135,6 +135,21 @@
       },
       "type": "object"
     },
+    "AuthorMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
     "CustomNsisBinary": {
       "additionalProperties": false,
       "properties": {
@@ -1952,6 +1967,11 @@
           "description": "The uninstaller display name in the control panel.",
           "type": "string"
         },
+        "uninstallExecutableName": {
+          "default": "${productName} ${version}",
+          "description": "The uninstaller display name in the control panel.",
+          "type": "string"
+        },
         "uninstallerIcon": {
           "description": "The path to uninstaller icon, relative to the [build resources](/configuration/configuration#MetadataDirectories-buildResources) or to the project directory.\nDefaults to `build/uninstallerIcon.ico` or application icon.",
           "type": [
@@ -2240,6 +2260,11 @@
           "description": "The uninstaller display name in the control panel.",
           "type": "string"
         },
+        "uninstallExecutableName": {
+          "default": "${productName} ${version}",
+          "description": "The uninstaller display name in the control panel.",
+          "type": "string"
+        },
         "uninstallerIcon": {
           "description": "The path to uninstaller icon, relative to the [build resources](/configuration/configuration#MetadataDirectories-buildResources) or to the project directory.\nDefaults to `build/uninstallerIcon.ico` or application icon.",
           "type": [
@@ -2411,6 +2436,104 @@
       ],
       "type": "object"
     },
+    "RawAppOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "additionalProperties": false,
+          "description": "Metadata that would normally be in package.json, which may not exist in the raw app dir",
+          "properties": {
+            "author": {
+              "$ref": "#/definitions/AuthorMetadata"
+            },
+            "dependencies": {
+              "typeof": "function"
+            },
+            "description": {
+              "description": "The application description.",
+              "type": "string"
+            },
+            "homepage": {
+              "description": "The url to the project [homepage](https://docs.npmjs.com/files/package.json#homepage) (NuGet Package `projectUrl` (optional) or Linux Package URL (required)).\n\nIf not specified and your project repository is public on GitHub, it will be `https://github.com/${user}/${project}` by default.",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "license": {
+              "description": "*linux-only.* The [license](https://docs.npmjs.com/files/package.json#license) name.",
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "main": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "name": {
+              "description": "The application name.",
+              "type": "string"
+            },
+            "productName": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "repository": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/RepositoryInfo"
+                },
+                {
+                  "type": [
+                    "null",
+                    "string"
+                  ]
+                }
+              ],
+              "description": "The [repository](https://docs.npmjs.com/files/package.json#repository)."
+            },
+            "shortVersion": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "shortVersionWindows": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "author",
+            "name",
+            "version"
+          ],
+          "type": "object"
+        },
+        "primaryExecutablePath": {
+          "description": "`null` indicates no executable (i.e. an auxiliary files installer)",
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      },
+      "required": [
+        "metadata",
+        "primaryExecutablePath"
+      ],
+      "type": "object"
+    },
     "ReleaseInfo": {
       "additionalProperties": false,
       "properties": {
@@ -2440,6 +2563,18 @@
           ]
         }
       },
+      "type": "object"
+    },
+    "RepositoryInfo": {
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
       "type": "object"
     },
     "TargetConfiguration": {
@@ -3370,35 +3505,6 @@
       ],
       "description": "MSI project created on disk - not packed into .msi package yet."
     },
-    "nodeVersion": {
-      "description": "*libui-based frameworks only* The version of NodeJS you are packaging for.\nYou can set it to `current` to set the Node.js version that you use to run.",
-      "type": [
-        "null",
-        "string"
-      ]
-    },
-    "npmArgs": {
-      "anyOf": [
-        {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        {
-          "type": [
-            "null",
-            "string"
-          ]
-        }
-      ],
-      "description": "Additional command line arguments to use when installing app native deps."
-    },
-    "npmRebuild": {
-      "default": true,
-      "description": "Whether to [rebuild](https://docs.npmjs.com/cli/rebuild) native dependencies before starting to package the app.",
-      "type": "boolean"
-    },
     "nsis": {
       "anyOf": [
         {
@@ -3493,6 +3599,16 @@
             "null",
             "string"
           ]
+        }
+      ]
+    },
+    "rawApp": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/RawAppOptions"
+        },
+        {
+          "type": "null"
         }
       ]
     },

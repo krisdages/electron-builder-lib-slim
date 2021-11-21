@@ -201,6 +201,9 @@ export class NsisTarget extends Target {
         defines.APP_EXECUTABLE_FILENAME = path.win32.normalize(rawApp.primaryExecutablePath)
       }
     }
+    if (options.uninstallExecutableName) {
+      defines.UNINSTALL_FILENAME = options.uninstallExecutableName.endsWith(".exe") ? options.uninstallExecutableName : `${options.uninstallExecutableName}.exe`
+    }
 
     if (options.debugLogging) {
       defines.ENABLE_LOGGING = null

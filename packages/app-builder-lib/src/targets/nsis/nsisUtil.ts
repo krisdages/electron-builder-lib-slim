@@ -103,13 +103,13 @@ export class CopyElevateHelper {
       return promise
     }
 
-    promise = NSIS_PATH().then(it => {
+    promise = NSIS_PATH().then(async (it) => {
+      await fs.mkdir(path.join(appOutDir, "resources"), { recursive: true })
       const outFile = path.join(appOutDir, "resources", "elevate.exe")
-      const promise = copyFile(path.join(it, "elevate.exe"), outFile, false)
+      await copyFile(path.join(it, "elevate.exe"), outFile, false)
       if (target.packager.platformSpecificBuildOptions.signAndEditExecutable !== false) {
-        return promise.then(() => target.packager.sign(outFile))
+        await target.packager.sign(outFile)
       }
-      return promise
     })
     this.copied.set(appOutDir, promise)
     return promise
