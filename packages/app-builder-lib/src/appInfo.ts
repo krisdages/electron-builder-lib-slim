@@ -75,7 +75,8 @@ export class AppInfo {
   }
 
   getVersionInWeirdWindowsForm(isSetBuildNumber = true): string {
-    const parsedVersion = new SemVer(this.version)
+    const loose = true;
+    const parsedVersion = new SemVer(this.version, loose);
     // https://github.com/electron-userland/electron-builder/issues/2635#issuecomment-371792272
     let buildNumber = isSetBuildNumber ? this.buildNumber : null
     if (buildNumber == null || !/^\d+$/.test(buildNumber)) {
